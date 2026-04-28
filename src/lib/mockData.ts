@@ -744,20 +744,29 @@ export const mockNotifications: Notification[] = [
   },
 ]
 
+const carlaProfile = {
+  ...mockConsultants.find((c) => c.id === 'c7')!,
+  user_role: 'hr_admin' as const,
+}
+
 export const DEMO_USERS = {
   'consultant@bip.com': {
     password: 'demo123',
     profile: mockConsultants[0], // Hernando Baquero
   },
-  'hr@bip.com': {
+  'carla@bip.com': {
+    password: 'demo123',
+    profile: carlaProfile,
+  },
+  'martha@bip.com': {
     password: 'demo123',
     profile: {
-      id: 'hr1',
-      name: 'María Rodríguez',
-      role_title: 'HR Manager',
-      seniority: 'Director' as const,
+      id: 'hr2',
+      name: 'Martha Martinez',
+      role_title: 'HR Admin',
+      seniority: 'Manager' as const,
       practice_area: null,
-      skills: ['HR', 'Staffing', 'People Management'],
+      skills: ['HR', 'Staffing', 'People Management', 'Talent Acquisition'],
       available_from: null,
       internship_start_date: null,
       internship_end_date: null,

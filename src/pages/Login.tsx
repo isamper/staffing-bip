@@ -85,7 +85,8 @@ export default function Login() {
               <div className="mt-4 rounded-md bg-slate-50 p-3 text-xs text-slate-500">
                 <p className="mb-1 font-semibold text-slate-600">Demo accounts</p>
                 <p>consultant@bip.com / demo123</p>
-                <p>hr@bip.com / demo123</p>
+                <p>carla@bip.com / demo123 (HR Admin)</p>
+                <p>martha@bip.com / demo123 (HR Admin)</p>
               </div>
             )}
           </CardContent>
