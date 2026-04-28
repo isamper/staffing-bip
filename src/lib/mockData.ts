@@ -597,6 +597,12 @@ export const mockProjects: Project[] = [
     end_date: '2026-12-15',
     team_size: 4,
     skills_required: ['Digital Transformation', 'IT Strategy', 'Business Analysis', 'Change Management'],
+    positions: [
+      { id: 'pos-801-1', role: 'Project Lead', seniority: 'Manager', skills: ['Digital Transformation', 'IT Strategy', 'Stakeholder Management'] },
+      { id: 'pos-801-2', role: 'Change Manager', seniority: 'Senior Consultant', skills: ['Change Management', 'Organizational Design', 'Training'] },
+      { id: 'pos-801-3', role: 'IT Architect', seniority: 'Senior Consultant', skills: ['IT Strategy', 'Systems Architecture', 'Digital Transformation'] },
+      { id: 'pos-801-4', role: 'Business Analyst', seniority: 'Consultant', skills: ['Business Analysis', 'Process Optimization', 'Data Analytics'] },
+    ],
     created_at: '2026-04-20T00:00:00Z',
   },
   {
@@ -610,6 +616,11 @@ export const mockProjects: Project[] = [
     end_date: '2026-09-30',
     team_size: 3,
     skills_required: ['Data Analytics', 'Business Intelligence', 'Strategy', 'Financial Services'],
+    positions: [
+      { id: 'pos-802-1', role: 'Data Strategy Lead', seniority: 'Manager', skills: ['Strategy', 'Data Analytics', 'Business Intelligence'] },
+      { id: 'pos-802-2', role: 'Analytics Consultant', seniority: 'Senior Consultant', skills: ['Data Analytics', 'Business Intelligence', 'Financial Modeling'] },
+      { id: 'pos-802-3', role: 'Financial Domain Expert', seniority: 'Consultant', skills: ['Financial Services', 'Business Analysis', 'Financial Modeling'] },
+    ],
     created_at: '2026-04-15T00:00:00Z',
   },
   {
@@ -623,6 +634,11 @@ export const mockProjects: Project[] = [
     end_date: '2026-10-31',
     team_size: 3,
     skills_required: ['ERP', 'Business Analysis', 'Project Management', 'Healthcare'],
+    positions: [
+      { id: 'pos-803-1', role: 'Project Manager', seniority: 'Manager', skills: ['Project Management', 'ERP', 'Stakeholder Management'] },
+      { id: 'pos-803-2', role: 'ERP Functional Analyst', seniority: 'Senior Consultant', skills: ['ERP', 'Business Analysis', 'Implementation'] },
+      { id: 'pos-803-3', role: 'Business Analyst', seniority: 'Consultant', skills: ['Business Analysis', 'Process Optimization', 'Healthcare'] },
+    ],
     created_at: '2026-04-25T00:00:00Z',
   },
 ]

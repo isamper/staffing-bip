@@ -43,6 +43,13 @@ export interface ExperienceEntry {
   description: string  // key activities / achievements
 }
 
+export interface Position {
+  id: string
+  role: string
+  seniority: Seniority
+  skills: string[]
+}
+
 export interface Project {
   id: string
   name: string
@@ -54,6 +61,7 @@ export interface Project {
   end_date: string
   team_size: number
   skills_required: string[]
+  positions?: Position[]
   created_at: string
 }
 

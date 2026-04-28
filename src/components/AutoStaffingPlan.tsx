@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Zap, Check, X, AlertTriangle, Heart } from 'lucide-react'
+import { Zap, Check, X, AlertTriangle, Heart, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { matchConsultants } from '@/lib/matching'
+import { matchConsultantsForPosition } from '@/lib/matching'
 import { getInitials, formatDate } from '@/lib/utils'
 import type {
   Profile,
+  Position,
   Project,
   ProjectAssignment,
   VacationRequest,
@@ -14,10 +15,14 @@ import type {
   MatchResult,
 } from '@/lib/types'
 
-interface ProjectSuggestion {
-  project: Project
-  slotsNeeded: number
+interface PositionSuggestion {
+  position: Position
   suggestions: MatchResult[]
+}
+
+interface ProjectPlan {
+  project: Project
+  positions: PositionSuggestion[]
 }
 
 interface AutoStaffingPlanProps {
@@ -38,52 +43,72 @@ export default function AutoStaffingPlan({
   onApply,
 }: AutoStaffingPlanProps) {
   const [horizon, setHorizon] = useState<30 | 60 | 90>(30)
-  const [plan, setPlan] = useState<ProjectSuggestion[] | null>(null)
-  const [accepted, setAccepted] = useState<Set<string>>(new Set())
+  const [plan, setPlan] = useState<ProjectPlan[] | null>(null)
+  // accepted: "projectId:positionId" -> consultantId
+  const [accepted, setAccepted] = useState<Map<string, string>>(new Map())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const today = new Date()
 
+  const previewProjects = projects.filter(
+    (p) =>
+      p.status !== 'Active' &&
+      p.status !== 'Fully Staffed' &&
+      new Date(p.start_date) <= new Date(today.getTime() + horizon * 86400000) &&
+      new Date(p.end_date) >= today,
+  )
+
   function generatePlan() {
-    const horizonDate = new Date(today.getTime() + horizon * 86400000)
-
-    const openProjects = projects.filter(
-      (p) =>
-        p.status !== 'Active' &&
-        p.status !== 'Fully Staffed' &&
-        new Date(p.start_date) <= horizonDate &&
-        new Date(p.end_date) >= today,
-    )
-
-    const alreadyAssignedIds = new Set(assignments.map((a) => a.consultant_id))
     const claimedIds = new Set<string>()
+    const alreadyAssignedIds = new Set(assignments.map((a) => a.consultant_id))
 
-    const suggestions: ProjectSuggestion[] = openProjects.map((project) => {
-      const assignedToProject = assignments.filter((a) => a.project_id === project.id).length
-      const slotsNeeded = Math.max(0, project.team_size - assignedToProject)
+    const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
+      const positionsToFill = project.positions ?? []
 
-      const available = consultants.filter(
-        (c) => c.is_active && !alreadyAssignedIds.has(c.id) && !claimedIds.has(c.id),
-      )
+      const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
+        const available = consultants.filter(
+          (c) => c.is_active && !alreadyAssignedIds.has(c.id) && !claimedIds.has(c.id),
+        )
+        const results = matchConsultantsForPosition(
+          position, project, available, likes, vacations, assignments,
+        ).slice(0, 3)
 
-      const results = matchConsultants(project, available, likes, vacations, assignments)
-      const top3 = results.slice(0, 3)
-      top3.forEach((r) => claimedIds.add(r.consultant.id))
+        // Claim the top pick so it won't appear in later positions
+        if (results[0]) claimedIds.add(results[0].consultant.id)
 
-      return { project, slotsNeeded, suggestions: top3 }
+        return { position, suggestions: results }
+      })
+
+      return { project, positions: positionSuggestions }
     })
 
-    setPlan(suggestions)
+    setPlan(projectPlans)
 
-    const initialAccepted = new Set<string>()
-    suggestions.forEach(({ project, suggestions: s }) => {
-      if (s[0]) initialAccepted.add(`${project.id}:${s[0].consultant.id}`)
+    // Pre-accept the top suggestion for each position
+    const initial = new Map<string, string>()
+    projectPlans.forEach(({ project, positions }) => {
+      positions.forEach(({ position, suggestions }) => {
+        if (suggestions[0]) {
+          initial.set(`${project.id}:${position.id}`, suggestions[0].consultant.id)
+        }
+      })
     })
-    setAccepted(initialAccepted)
+    setAccepted(initial)
+    setExpanded(new Set())
   }
 
-  function toggle(projectId: string, consultantId: string) {
-    const key = `${projectId}:${consultantId}`
+  function selectConsultant(projectId: string, positionId: string, consultantId: string) {
+    const key = `${projectId}:${positionId}`
     setAccepted((prev) => {
+      const next = new Map(prev)
+      if (next.get(key) === consultantId) next.delete(key)
+      else next.set(key, consultantId)
+      return next
+    })
+  }
+
+  function toggleExpand(key: string) {
+    setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
@@ -94,13 +119,14 @@ export default function AutoStaffingPlan({
   function applyPlan() {
     if (!plan) return
     const newAssignments: ProjectAssignment[] = []
-    plan.forEach(({ project, suggestions }) => {
-      suggestions.forEach(({ consultant }) => {
-        if (accepted.has(`${project.id}:${consultant.id}`)) {
+    plan.forEach(({ project, positions }) => {
+      positions.forEach(({ position }) => {
+        const consultantId = accepted.get(`${project.id}:${position.id}`)
+        if (consultantId) {
           newAssignments.push({
-            id: `auto-${Date.now()}-${consultant.id}`,
+            id: `auto-${Date.now()}-${position.id}`,
             project_id: project.id,
-            consultant_id: consultant.id,
+            consultant_id: consultantId,
             dedication_percentage: 100,
             end_date: project.end_date,
             assigned_at: new Date().toISOString(),
@@ -110,18 +136,10 @@ export default function AutoStaffingPlan({
     })
     onApply(newAssignments)
     setPlan(null)
-    setAccepted(new Set())
+    setAccepted(new Map())
   }
 
   const acceptedCount = accepted.size
-
-  const previewProjects = projects.filter(
-    (p) =>
-      p.status !== 'Active' &&
-      p.status !== 'Fully Staffed' &&
-      new Date(p.start_date) <= new Date(today.getTime() + horizon * 86400000) &&
-      new Date(p.end_date) >= today,
-  )
 
   if (!plan) {
     return (
@@ -166,36 +184,58 @@ export default function AutoStaffingPlan({
                 {previewProjects.map((p) => {
                   const assigned = assignments.filter((a) => a.project_id === p.id).length
                   const slots = Math.max(0, p.team_size - assigned)
+                  const key = `preview-${p.id}`
+                  const isExpanded = expanded.has(key)
                   return (
                     <div
                       key={p.id}
-                      className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
+                      className="rounded-md border border-slate-100 bg-slate-50"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
+                      <button
+                        onClick={() => toggleExpand(key)}
+                        className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left"
+                      >
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-navy-800">{p.name}</p>
                           <p className="text-xs text-slate-500">
                             {p.client} · starts {formatDate(p.start_date)}
                           </p>
+                          <p className="mt-0.5 text-xs text-slate-400 italic">{p.description}</p>
                         </div>
-                        <div className="shrink-0 text-right">
+                        <div className="flex shrink-0 flex-col items-end gap-1">
                           <Badge variant={p.status === 'Partially Staffed' ? 'partial' : 'open'} className="text-xs">
                             {p.status}
                           </Badge>
-                          <p className="mt-0.5 text-xs text-slate-400">{slots} slot{slots !== 1 ? 's' : ''} open</p>
+                          <p className="text-xs text-slate-400">{slots} slot{slots !== 1 ? 's' : ''} open</p>
+                          {isExpanded ? <ChevronUp size={13} className="text-slate-400" /> : <ChevronDown size={13} className="text-slate-400" />}
                         </div>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500 italic">{p.description}</p>
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {p.skills_required.map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-full bg-navy-800/10 px-2 py-0.5 text-xs text-navy-800"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
+                      </button>
+
+                      {isExpanded && p.positions && (
+                        <div className="border-t border-slate-100 px-3 pb-3 pt-2">
+                          <p className="mb-2 text-xs font-medium text-slate-500">Positions to fill:</p>
+                          <div className="space-y-2">
+                            {p.positions.map((pos) => (
+                              <div key={pos.id} className="rounded-md bg-white border border-slate-100 px-3 py-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold text-navy-800">{pos.role}</p>
+                                  <span className="text-xs text-slate-500 shrink-0">{pos.seniority}</span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {pos.skills.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="rounded-full bg-navy-800/10 px-2 py-0.5 text-xs text-navy-800"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -219,98 +259,119 @@ export default function AutoStaffingPlan({
         <div>
           <h3 className="font-semibold text-navy-800">Staffing Plan — Next {horizon} Days</h3>
           <p className="text-sm text-slate-500">
-            {plan.length} project{plan.length !== 1 ? 's' : ''} · {acceptedCount} assignment{acceptedCount !== 1 ? 's' : ''} selected
+            {plan.length} project{plan.length !== 1 ? 's' : ''} · {acceptedCount} position{acceptedCount !== 1 ? 's' : ''} assigned
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPlan(null)}>
-            Regenerate
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => setPlan(null)}>Regenerate</Button>
           <Button size="sm" onClick={applyPlan} disabled={acceptedCount === 0} className="gap-1.5">
             <Check size={14} /> Apply {acceptedCount} Assignment{acceptedCount !== 1 ? 's' : ''}
           </Button>
         </div>
       </div>
 
-      {plan.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center">
-          <p className="text-slate-500">No open projects starting in the next {horizon} days.</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => setPlan(null)}>
-            Try a longer horizon
-          </Button>
-        </div>
-      ) : (
-        plan.map(({ project, slotsNeeded, suggestions }) => (
-          <div key={project.id} className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium text-navy-800">{project.name}</p>
-                <p className="text-xs text-slate-500">
-                  {project.client} · {formatDate(project.start_date)} – {formatDate(project.end_date)}
-                </p>
-              </div>
-              <Badge variant="open" className="shrink-0 text-xs">
-                {slotsNeeded} slot{slotsNeeded !== 1 ? 's' : ''} open
-              </Badge>
-            </div>
+      {plan.map(({ project, positions }) => (
+        <div key={project.id} className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mb-3">
+            <p className="font-medium text-navy-800">{project.name}</p>
+            <p className="text-xs text-slate-500">
+              {project.client} · {formatDate(project.start_date)} – {formatDate(project.end_date)}
+            </p>
+          </div>
 
-            {suggestions.length === 0 ? (
-              <p className="text-xs text-slate-400">No available consultants matched this project.</p>
-            ) : (
-              <div className="space-y-2">
-                {suggestions.map((result) => {
-                  const key = `${project.id}:${result.consultant.id}`
-                  const isAccepted = accepted.has(key)
-                  return (
-                    <div
-                      key={result.consultant.id}
-                      className={`flex items-center gap-3 rounded-md border p-2.5 transition ${
-                        isAccepted
-                          ? 'border-green-200 bg-green-50'
-                          : 'border-slate-100 bg-white opacity-60'
-                      }`}
-                    >
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback className="text-xs">
-                          {getInitials(result.consultant.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-medium text-navy-800">{result.consultant.name}</p>
-                          {result.hasLiked && (
-                            <Heart size={11} className="fill-bip-red text-bip-red" />
-                          )}
-                        </div>
-                        <p className="truncate text-xs text-slate-500">{result.reason}</p>
-                        {result.vacationWarning && (
-                          <p className="flex items-center gap-1 text-xs text-amber-600">
-                            <AlertTriangle size={10} /> {result.vacationWarning}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-bold text-navy-800">{result.score}</span>
-                        <button
-                          onClick={() => toggle(project.id, result.consultant.id)}
-                          className={`flex h-7 w-7 items-center justify-center rounded-full transition ${
-                            isAccepted
-                              ? 'bg-green-600 text-white hover:bg-red-500'
-                              : 'border border-slate-200 text-slate-400 hover:border-green-600 hover:text-green-600'
-                          }`}
-                          title={isAccepted ? 'Remove from plan' : 'Add to plan'}
-                        >
-                          {isAccepted ? <Check size={13} /> : <X size={13} />}
-                        </button>
+          <div className="space-y-3">
+            {positions.map(({ position, suggestions }) => {
+              const selectedId = accepted.get(`${project.id}:${position.id}`)
+              const isExpanded = expanded.has(`${project.id}:${position.id}`)
+
+              return (
+                <div key={position.id} className="rounded-md border border-slate-100">
+                  {/* Position header */}
+                  <div className="flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 rounded-t-md">
+                    <div>
+                      <span className="text-xs font-semibold text-navy-800">{position.role}</span>
+                      <span className="ml-2 text-xs text-slate-500">{position.seniority}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {position.skills.map((s) => (
+                          <span key={s} className="rounded-full bg-navy-800/10 px-2 py-0.5 text-xs text-navy-800">
+                            {s}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                  </div>
+
+                  {/* Suggestions */}
+                  <div className="divide-y divide-slate-50 px-3 pb-2 pt-1">
+                    {suggestions.length === 0 ? (
+                      <p className="py-2 text-xs text-slate-400">No available consultants matched this position.</p>
+                    ) : (
+                      <>
+                        {(isExpanded ? suggestions : suggestions.slice(0, 1)).map((result) => {
+                          const isSelected = selectedId === result.consultant.id
+                          return (
+                            <div
+                              key={result.consultant.id}
+                              className={`flex items-center gap-3 py-2 transition ${
+                                isSelected ? 'opacity-100' : 'opacity-50'
+                              }`}
+                            >
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(result.consultant.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-sm font-medium text-navy-800">{result.consultant.name}</p>
+                                  {result.hasLiked && <Heart size={11} className="fill-bip-red text-bip-red" />}
+                                </div>
+                                <p className="truncate text-xs text-slate-500">{result.reason}</p>
+                                {result.vacationWarning && (
+                                  <p className="flex items-center gap-1 text-xs text-amber-600">
+                                    <AlertTriangle size={10} /> {result.vacationWarning}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="text-sm font-bold text-navy-800">{result.score}</span>
+                                <button
+                                  onClick={() => selectConsultant(project.id, position.id, result.consultant.id)}
+                                  className={`flex h-7 w-7 items-center justify-center rounded-full transition ${
+                                    isSelected
+                                      ? 'bg-green-600 text-white hover:bg-red-500'
+                                      : 'border border-slate-200 text-slate-400 hover:border-green-600 hover:text-green-600'
+                                  }`}
+                                >
+                                  {isSelected ? <Check size={13} /> : <X size={13} />}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {suggestions.length > 1 && (
+                          <button
+                            onClick={() => toggleExpand(`${project.id}:${position.id}`)}
+                            className="flex w-full items-center gap-1 pt-1 text-xs text-slate-400 hover:text-navy-800"
+                          >
+                            {isExpanded ? (
+                              <><ChevronUp size={12} /> Show less</>
+                            ) : (
+                              <><ChevronDown size={12} /> {suggestions.length - 1} more option{suggestions.length - 1 !== 1 ? 's' : ''}</>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        ))
-      )}
+        </div>
+      ))}
 
       {plan.length > 0 && (
         <div className="flex justify-end pt-1">
