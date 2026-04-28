@@ -115,34 +115,87 @@ export default function AutoStaffingPlan({
 
   const acceptedCount = accepted.size
 
+  const previewProjects = projects.filter(
+    (p) =>
+      p.status !== 'Active' &&
+      p.status !== 'Fully Staffed' &&
+      new Date(p.start_date) <= new Date(today.getTime() + horizon * 86400000) &&
+      new Date(p.end_date) >= today,
+  )
+
   if (!plan) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-10 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-navy-800">
-          <Zap size={24} className="text-white" />
+      <div className="rounded-lg border border-slate-200 bg-white p-8">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-navy-800">
+            <Zap size={24} className="text-white" />
+          </div>
+          <h3 className="text-lg font-semibold text-navy-800">Auto-Staff Open Projects</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Generate the best staffing plan for all open projects starting in the next
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            {([30, 60, 90] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setHorizon(d)}
+                className={`rounded-full px-5 py-1.5 text-sm font-medium transition ${
+                  horizon === d
+                    ? 'bg-navy-800 text-white'
+                    : 'border border-slate-200 text-slate-600 hover:border-navy-800'
+                }`}
+              >
+                {d} days
+              </button>
+            ))}
+          </div>
         </div>
-        <h3 className="text-lg font-semibold text-navy-800">Auto-Staff Open Projects</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Generate the best staffing plan for all open projects starting in the next
-        </p>
-        <div className="mt-4 flex justify-center gap-2">
-          {([30, 60, 90] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setHorizon(d)}
-              className={`rounded-full px-5 py-1.5 text-sm font-medium transition ${
-                horizon === d
-                  ? 'bg-navy-800 text-white'
-                  : 'border border-slate-200 text-slate-600 hover:border-navy-800'
-              }`}
-            >
-              {d} days
-            </button>
-          ))}
+
+        {/* Project preview */}
+        <div className="mb-6">
+          {previewProjects.length === 0 ? (
+            <p className="text-center text-sm text-slate-400">
+              No open projects starting in the next {horizon} days.
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                {previewProjects.length} project{previewProjects.length !== 1 ? 's' : ''} to staff
+              </p>
+              <div className="space-y-2">
+                {previewProjects.map((p) => {
+                  const assigned = assignments.filter((a) => a.project_id === p.id).length
+                  const slots = Math.max(0, p.team_size - assigned)
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-navy-800">{p.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {p.client} · starts {formatDate(p.start_date)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <Badge variant={p.status === 'Partially Staffed' ? 'partial' : 'open'} className="text-xs">
+                          {p.status}
+                        </Badge>
+                        <p className="mt-0.5 text-xs text-slate-400">{slots} slot{slots !== 1 ? 's' : ''} open</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </div>
-        <Button onClick={generatePlan} className="mt-6 gap-2">
-          <Zap size={15} /> Generate Plan
-        </Button>
+
+        <div className="flex justify-center">
+          <Button onClick={generatePlan} disabled={previewProjects.length === 0} className="gap-2">
+            <Zap size={15} /> Generate Plan
+          </Button>
+        </div>
       </div>
     )
   }
