@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase, isDemoMode } from '@/lib/supabase'
-import { DEMO_USERS } from '@/lib/mockData'
+import { DEMO_USERS, mockConsultants } from '@/lib/mockData'
 import type { Profile } from '@/lib/types'
 
 interface AuthContextValue {
@@ -13,6 +13,16 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 const DEMO_SESSION_KEY = 'bench_demo_user'
+
+function nameToEmail(name: string): string {
+  const parts = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .split(' ')
+    .filter(Boolean)
+  return `${parts[0]}.${parts[parts.length - 1]}@bip-group.com`
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -51,11 +61,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string): Promise<{ error: string | null }> {
     if (isDemoMode) {
+      if (password !== 'demo123') return { error: 'Invalid email or password' }
+
+      // Check named admin users first
       const user = DEMO_USERS[email as keyof typeof DEMO_USERS]
-      if (!user || user.password !== password) return { error: 'Invalid email or password' }
-      setProfile(user.profile)
-      localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(user.profile))
-      return { error: null }
+      if (user) {
+        setProfile(user.profile)
+        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(user.profile))
+        return { error: null }
+      }
+
+      // Auto-match any consultant by firstname.lastname@bip-group.com
+      if (email.endsWith('@bip-group.com')) {
+        const consultant = mockConsultants.find((c) => nameToEmail(c.name) === email)
+        if (consultant) {
+          setProfile(consultant)
+          localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(consultant))
+          return { error: null }
+        }
+      }
+
+      return { error: 'Invalid email or password' }
     }
 
     const { error } = await supabase!.auth.signInWithPassword({ email, password })

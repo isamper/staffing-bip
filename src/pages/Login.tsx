@@ -83,10 +83,11 @@ export default function Login() {
 
             {isDemoMode && (
               <div className="mt-4 rounded-md bg-slate-50 p-3 text-xs text-slate-500">
-                <p className="mb-1 font-semibold text-slate-600">Demo accounts</p>
-                <p>consultant@bip.com / demo123</p>
-                <p>carla@bip.com / demo123 (HR Admin)</p>
-                <p>martha@bip.com / demo123 (HR Admin)</p>
+                <p className="mb-1 font-semibold text-slate-600">Demo accounts · password: demo123</p>
+                <p>carla.villaverde@bip-group.com (HR Admin)</p>
+                <p>martha.martinez@bip-group.com (HR Admin)</p>
+                <p>hernando.baquero@bip-group.com (Consultant)</p>
+                <p className="mt-1 text-slate-400">All consultants: firstname.lastname@bip-group.com</p>
               </div>
             )}
           </CardContent>
