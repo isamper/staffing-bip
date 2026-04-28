@@ -22,6 +22,7 @@ import { matchConsultants, findReplacements } from '@/lib/matching'
 import { MAX_CARGABILITY } from '@/lib/constants'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import PeopleTab from '@/components/PeopleTab'
+import AutoStaffingPlan from '@/components/AutoStaffingPlan'
 import type { Profile, Project, VacationRequest, ProjectAssignment } from '@/lib/types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -656,13 +657,16 @@ export default function AdminDashboard() {
 
         {/* Staffing Plan tab */}
         <TabsContent value="staffing">
-          <div className="rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center">
-            <Zap size={32} className="mx-auto mb-3 text-slate-300" />
-            <p className="font-medium text-slate-600">Auto-staffing coming in Phase 2</p>
-            <p className="mt-1 text-sm text-slate-400">
-              Run a one-click staffing plan across all open projects for the next 30, 60, or 90 days.
-            </p>
-          </div>
+          <AutoStaffingPlan
+            projects={visibleProjects}
+            consultants={mockConsultants}
+            assignments={assignments}
+            vacations={vacations}
+            likes={mockLikes}
+            onApply={(newAssignments) =>
+              setAssignments((prev) => [...prev, ...newAssignments])
+            }
+          />
         </TabsContent>
       </Tabs>
     </Layout>
