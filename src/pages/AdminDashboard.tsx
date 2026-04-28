@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Users, Zap, Clock, FolderOpen, Search, Heart,
+  Users, Zap, Clock, FolderOpen, Search, Heart, Plus,
   CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
@@ -23,6 +23,7 @@ import { MAX_CARGABILITY } from '@/lib/constants'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import PeopleTab from '@/components/PeopleTab'
 import AutoStaffingPlan from '@/components/AutoStaffingPlan'
+import NewProjectDialog from '@/components/NewProjectDialog'
 import type { Profile, Project, VacationRequest, ProjectAssignment } from '@/lib/types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -234,16 +235,18 @@ function AssignedMemberRow({
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
   const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
+  const [showNewProject, setShowNewProject] = useState(false)
 
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
-  const visibleProjects = mockProjects.filter((p) => new Date(p.end_date) >= today)
+  const visibleProjects = projects.filter((p) => new Date(p.end_date) >= today)
   const upcomingProjects = visibleProjects.filter((p) => p.status !== 'Active')
   const activeProjects = visibleProjects.filter((p) => p.status === 'Active')
 
@@ -309,8 +312,17 @@ export default function AdminDashboard() {
     setReplacementsFor((prev) => (prev === consultantId ? null : consultantId))
   }
 
+  function handleAddProject(project: Project) {
+    setProjects((prev) => [...prev, project])
+  }
+
   return (
     <Layout>
+      <NewProjectDialog
+        open={showNewProject}
+        onClose={() => setShowNewProject(false)}
+        onAdd={handleAddProject}
+      />
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
         <p className="text-sm text-slate-500">Manage your consulting team and projects</p>
@@ -341,6 +353,11 @@ export default function AdminDashboard() {
 
         {/* Projects tab */}
         <TabsContent value="projects">
+          <div className="mb-3 flex justify-end">
+            <Button size="sm" className="gap-1.5" onClick={() => setShowNewProject(true)}>
+              <Plus size={14} /> New Project
+            </Button>
+          </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Project list */}
             <div className="space-y-4">
