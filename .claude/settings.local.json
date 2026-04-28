@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:project-staffing.lovable.app)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(npm install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(ls \"/c/Python3\"*)",
+      "Bash(where python *)",
+      "Bash(where python3 *)",
+      "Bash(python \"/c/Users/isabe/AppData/Local/Microsoft/WindowsApps/python.exe\" -c \"print\\('hello'\\)\")",
+      "Bash(/c/Users/isabe/AppData/Local/Microsoft/WindowsApps/python.exe -c \"print\\('hello'\\)\")",
+      "Bash(npm --version)",
+      "Bash(npx tsc *)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs\")",
+      "Bash(export PATH=\"$PATH:/c/Program Files/nodejs:/c/Python313:/c/Python312:/c/Python311:/c/Python310:/c/Users/isabe/AppData/Local/Programs/Python/Python313:/c/Users/isabe/AppData/Local/Programs/Python/Python312:/c/Users/isabe/AppData/Local/Programs/Python/Python311\")",
+      "Read(//c/Users/isabe/AppData/Local/Programs/**)",
+      "Read(//c/Users/isabe/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/5ebe5c0a-47f5-4904-a4e4-b3f474c6e3e1/d1dae979-fcd7-46b3-a3ee-481e28e5d42a/skills/pptx/**)",
+      "Bash(python -m markitdown \"C:\\\\Users\\\\isabe\\\\Downloads\\\\Hojas de Vida consolidadas - Formato Bip \\(1\\).pptx\")",
+      "Bash(where node *)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('jszip'\\)\")",
+      "Bash(npm list *)",
+      "Bash(node parse_cvs.js)",
+      "Bash(node parse_cvs.js --input-type=commonjs)",
+      "Bash(node --input-type=commonjs)",
+      "Bash(node \"C:\\\\Users\\\\isabe\\\\OneDrive\\\\Documents\\\\3. Spring2026\\\\AI Prototyping Bootcamp\\\\Staffing_Bip\\\\parse_cvs.cjs\")",
+      "Bash(node \"C:\\\\Users\\\\isabe\\\\OneDrive\\\\Documents\\\\3. Spring2026\\\\AI Prototyping Bootcamp\\\\Staffing_Bip\\\\parse_cvs_compact.cjs\")",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

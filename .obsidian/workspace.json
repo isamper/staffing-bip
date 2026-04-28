@@ -1,0 +1,229 @@
+{
+  "main": {
+    "id": "b7caa8b92ee906e1",
+    "type": "split",
+    "children": [
+      {
+        "id": "f8869387bcfa632c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5c8b60209df54195",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/spec.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "spec"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "fda90b4f3e0d58a7",
+    "type": "split",
+    "children": [
+      {
+        "id": "7bfcb39b16624705",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a667e66f16ead062",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "f30c662116235768",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "7397c3f7189070cf",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "accc7c5d33c24871",
+    "type": "split",
+    "children": [
+      {
+        "id": "0a2d18becf1c4e2a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "533bd29e618adecd",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/spec.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for spec"
+            }
+          },
+          {
+            "id": "559dd63b7d555315",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/spec.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from spec"
+            }
+          },
+          {
+            "id": "37b91a1f4aa8fc48",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "d41762b4b4ffa241",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "557238e36aee7066",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/spec.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of spec"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "a667e66f16ead062",
+  "lastOpenFiles": [
+    "node_modules/@radix-ui/react-dismissable-layer/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-popper/node_modules/@radix-ui/react-slot/LICENSE",
+    "node_modules/@radix-ui/react-dropdown-menu/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-primitive/LICENSE",
+    "node_modules/@radix-ui/react-dismissable-layer/node_modules/@radix-ui/react-primitive/package.json",
+    "node_modules/@radix-ui/react-popper/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-dismissable-layer/node_modules/@radix-ui/react-slot/package.json",
+    "node_modules/@radix-ui/react-collection/node_modules/@radix-ui/react-primitive/package.json",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-portal/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-dismissable-layer/node_modules/@radix-ui/react-primitive/LICENSE",
+    "node_modules/@radix-ui/react-portal/node_modules/@radix-ui/react-slot/package.json",
+    "node_modules/@radix-ui/react-visually-hidden/node_modules/@radix-ui/react-primitive/LICENSE",
+    "node_modules/@radix-ui/react-portal/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-slot/package.json",
+    "node_modules/@radix-ui/react-popper/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-context/package.json",
+    "node_modules/@radix-ui/react-dismissable-layer/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-visually-hidden/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-toast/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-visually-hidden/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-roving-focus/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-roving-focus/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-popper/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-menu/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-collection/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-toast/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-collection/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-toast/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-menu/node_modules/@radix-ui/react-primitive/README.md",
+    "node_modules/@radix-ui/react-collection/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-tabs/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/@radix-ui/react-menu/node_modules/@radix-ui/react-context/README.md",
+    "node_modules/@radix-ui/react-arrow/node_modules/@radix-ui/react-slot/README.md",
+    "node_modules/date-fns/docs/logotype.svg",
+    "node_modules/date-fns/docs/logo.svg",
+    "node_modules/@supabase/phoenix/priv/static/phoenix.png",
+    "node_modules/@supabase/phoenix/priv/static/phoenix-orange.png"
+  ]
+}

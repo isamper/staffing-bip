@@ -1,0 +1,572 @@
+import { useState, useRef } from 'react'
+import {
+  Pencil, X, Check, Download, FileText, Presentation,
+  GraduationCap, Globe, Briefcase, Award, Wrench, Plus,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
+import type { Profile, ProjectAssignment, Project, ExperienceEntry } from '@/lib/types'
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-1.5 mb-2 border-b border-slate-100 pb-1">
+        <span className="text-navy-600">{icon}</span>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function EditableText({
+  value, placeholder, onSave, multiline = false, className = '',
+}: {
+  value: string; placeholder: string; onSave: (v: string) => void
+  multiline?: boolean; className?: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  if (editing) {
+    return (
+      <div className="flex gap-1 items-start">
+        {multiline ? (
+          <textarea
+            className={`flex-1 rounded border border-navy-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 resize-none ${className}`}
+            value={draft}
+            rows={4}
+            onChange={e => setDraft(e.target.value)}
+            autoFocus
+          />
+        ) : (
+          <input
+            className={`flex-1 rounded border border-navy-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 ${className}`}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            autoFocus
+          />
+        )}
+        <button onClick={() => { onSave(draft); setEditing(false) }} className="text-green-600 hover:text-green-700 mt-1"><Check size={14} /></button>
+        <button onClick={() => { setDraft(value); setEditing(false) }} className="text-slate-400 hover:text-slate-600 mt-1"><X size={14} /></button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group flex items-start gap-1 cursor-text" onClick={() => { setDraft(value); setEditing(true) }}>
+      <span className={`flex-1 text-sm ${value ? 'text-slate-700' : 'text-slate-300 italic'} ${className}`}>
+        {value || placeholder}
+      </span>
+      <Pencil size={11} className="shrink-0 mt-0.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  )
+}
+
+function TagEditor({
+  tags, onUpdate, placeholder,
+}: {
+  tags: string[]; onUpdate: (t: string[]) => void; placeholder: string
+}) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const add = () => {
+    const t = draft.trim()
+    if (t && !tags.includes(t)) onUpdate([...tags, t])
+    setDraft('')
+    setAdding(false)
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 items-center">
+      {tags.map(t => (
+        <span
+          key={t}
+          className="group inline-flex items-center gap-1 rounded-full bg-navy-50 border border-navy-100 px-2.5 py-0.5 text-xs text-navy-700"
+        >
+          {t}
+          <button
+            onClick={() => onUpdate(tags.filter(x => x !== t))}
+            className="text-navy-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          ><X size={9} /></button>
+        </span>
+      ))}
+      {adding ? (
+        <span className="inline-flex items-center gap-1">
+          <input
+            className="w-32 rounded-full border border-navy-300 px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-navy-400"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') { setDraft(''); setAdding(false) } }}
+            autoFocus
+            placeholder={placeholder}
+          />
+          <button onClick={add} className="text-green-600 hover:text-green-700"><Check size={12} /></button>
+          <button onClick={() => { setDraft(''); setAdding(false) }} className="text-slate-400"><X size={12} /></button>
+        </span>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400 hover:border-navy-400 hover:text-navy-600 transition-colors"
+        >
+          <Plus size={10} /> Add
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Experience Editor ─────────────────────────────────────────────────────────
+
+function ExperienceEditor({
+  entries, onUpdate,
+}: {
+  entries: ExperienceEntry[]; onUpdate: (e: ExperienceEntry[]) => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const blank = (): ExperienceEntry => ({ id: `exp-${Date.now()}`, title: '', client: '', period: '', description: '' })
+  const [draft, setDraft] = useState<ExperienceEntry>(blank())
+
+  const save = (entry: ExperienceEntry) => {
+    if (!entry.title.trim()) return
+    const exists = entries.find(e => e.id === entry.id)
+    onUpdate(exists ? entries.map(e => e.id === entry.id ? entry : e) : [...entries, entry])
+    setAdding(false)
+    setEditingId(null)
+    setDraft(blank())
+  }
+
+  const remove = (id: string) => onUpdate(entries.filter(e => e.id !== id))
+
+  const startEdit = (entry: ExperienceEntry) => { setDraft({ ...entry }); setEditingId(entry.id) }
+
+  const EntryForm = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+    <div className="rounded-lg border border-navy-200 bg-navy-50/40 p-3 space-y-2">
+      <input
+        className="w-full rounded border border-slate-200 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400"
+        placeholder="Nombre del proyecto o rol *"
+        value={draft.title}
+        onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          className="rounded border border-slate-200 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400"
+          placeholder="Cliente / Empresa"
+          value={draft.client}
+          onChange={e => setDraft(d => ({ ...d, client: e.target.value }))}
+        />
+        <input
+          className="rounded border border-slate-200 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400"
+          placeholder="Período (ej. 2022 – 2024)"
+          value={draft.period}
+          onChange={e => setDraft(d => ({ ...d, period: e.target.value }))}
+        />
+      </div>
+      <textarea
+        className="w-full rounded border border-slate-200 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 resize-none"
+        placeholder="Descripción de actividades y logros"
+        rows={3}
+        value={draft.description}
+        onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
+      />
+      <div className="flex justify-end gap-2">
+        <button onClick={onCancel} className="rounded px-3 py-1 text-xs text-slate-500 hover:text-slate-700 border border-slate-200">Cancelar</button>
+        <button onClick={onSave} className="rounded bg-navy-800 px-3 py-1 text-xs text-white hover:bg-navy-700">Guardar</button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-3">
+      {entries.map((entry) => (
+        <div key={entry.id}>
+          {editingId === entry.id ? (
+            <EntryForm onSave={() => save(draft)} onCancel={() => setEditingId(null)} />
+          ) : (
+            <div className="group flex gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+              <div className="w-1 shrink-0 rounded-full bg-navy-600 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-navy-800 leading-snug">{entry.title}</p>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button onClick={() => startEdit(entry)} className="text-slate-400 hover:text-navy-600"><Pencil size={12} /></button>
+                    <button onClick={() => remove(entry.id)} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                  </div>
+                </div>
+                {(entry.client || entry.period) && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {[entry.client, entry.period].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                {entry.description && (
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{entry.description}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {adding ? (
+        <EntryForm onSave={() => save(draft)} onCancel={() => { setAdding(false); setDraft(blank()) }} />
+      ) : (
+        <button
+          onClick={() => { setDraft(blank()); setAdding(true) }}
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-400 hover:border-navy-400 hover:text-navy-600 transition-colors w-full"
+        >
+          <Plus size={14} /> Agregar experiencia
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── PDF print styles injected once ───────────────────────────────────────────
+
+const PRINT_STYLE = `
+@media print {
+  body * { visibility: hidden !important; }
+  #cv-print-area, #cv-print-area * { visibility: visible !important; }
+  #cv-print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 32px 40px; background: white; }
+  .cv-no-print { display: none !important; }
+  .cv-print-header { display: flex !important; }
+}
+`
+
+// ── PPTX export (pptxgenjs) ───────────────────────────────────────────────────
+
+async function exportToPptx(profile: Profile) {
+  const PptxGenJS = (await import('pptxgenjs')).default
+  const pptx = new PptxGenJS()
+  pptx.layout = 'LAYOUT_16x9'
+
+  const NAVY = '003366'
+  const LIGHT = 'F0F4F8'
+  const WHITE = 'FFFFFF'
+  const GRAY = '64748B'
+
+  const slide = pptx.addSlide()
+
+  // Left panel background
+  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 3.2, h: 7.5, fill: { color: NAVY } })
+
+  // Avatar circle placeholder
+  slide.addShape(pptx.ShapeType.ellipse, { x: 0.7, y: 0.35, w: 1.8, h: 1.8, fill: { color: '1a4f8f' }, line: { color: WHITE, width: 2 } })
+  slide.addText(getInitials(profile.name), {
+    x: 0.7, y: 0.35, w: 1.8, h: 1.8, align: 'center', valign: 'middle',
+    fontSize: 28, bold: true, color: WHITE,
+  })
+
+  // Name + title on left panel
+  slide.addText(profile.name, {
+    x: 0.15, y: 2.3, w: 2.9, h: 0.45,
+    fontSize: 15, bold: true, color: WHITE, align: 'center', wrap: true,
+  })
+  slide.addText(profile.role_title, {
+    x: 0.15, y: 2.75, w: 2.9, h: 0.35,
+    fontSize: 10, color: 'A8C4E0', align: 'center', italic: true, wrap: true,
+  })
+
+  // Divider
+  slide.addShape(pptx.ShapeType.rect, { x: 0.3, y: 3.2, w: 2.6, h: 0.02, fill: { color: '1a4f8f' } })
+
+  // Left panel info blocks
+  let leftY = 3.35
+  const addLeftRow = (icon: string, label: string, val: string | null) => {
+    if (!val) return
+    slide.addText(icon + ' ' + label, { x: 0.2, y: leftY, w: 2.8, h: 0.22, fontSize: 7.5, bold: true, color: 'A8C4E0' })
+    leftY += 0.22
+    slide.addText(val, { x: 0.2, y: leftY, w: 2.8, h: 0.3, fontSize: 8.5, color: WHITE, wrap: true })
+    leftY += 0.35
+  }
+
+  addLeftRow('🎓', 'EDUCACIÓN', profile.education)
+  addLeftRow('🌐', 'IDIOMAS', profile.languages)
+  if (profile.years_of_experience) addLeftRow('💼', 'EXPERIENCIA', profile.years_of_experience + ' años')
+  if (profile.certifications?.length) addLeftRow('🏆', 'CERTIFICACIONES', profile.certifications.join(', '))
+
+  // Right panel — main content
+  const RX = 3.5
+
+  // Bio
+  if (profile.bio) {
+    slide.addText('RESUMEN PROFESIONAL', { x: RX, y: 0.3, w: 6, h: 0.28, fontSize: 9, bold: true, color: NAVY })
+    slide.addShape(pptx.ShapeType.rect, { x: RX, y: 0.58, w: 6, h: 0.025, fill: { color: NAVY } })
+    slide.addText(profile.bio, {
+      x: RX, y: 0.65, w: 6, h: 0.9, fontSize: 9, color: '334155', wrap: true, valign: 'top',
+    })
+  }
+
+  // Skills
+  if (profile.skills.length) {
+    let skillY = profile.bio ? 1.65 : 0.65
+    slide.addText('COMPETENCIAS', { x: RX, y: skillY, w: 6, h: 0.28, fontSize: 9, bold: true, color: NAVY })
+    skillY += 0.28
+    slide.addShape(pptx.ShapeType.rect, { x: RX, y: skillY, w: 6, h: 0.025, fill: { color: NAVY } })
+    skillY += 0.1
+
+    // Render skill chips in rows
+    let chipX = RX
+    let chipY = skillY
+    for (const skill of profile.skills.slice(0, 12)) {
+      const chipW = Math.min(skill.length * 0.085 + 0.3, 2.2)
+      if (chipX + chipW > 9.4) { chipX = RX; chipY += 0.32 }
+      slide.addShape(pptx.ShapeType.roundRect, { x: chipX, y: chipY, w: chipW, h: 0.24, fill: { color: 'EFF6FF' }, line: { color: 'BFDBFE', width: 0.5 } })
+      slide.addText(skill, { x: chipX, y: chipY, w: chipW, h: 0.24, fontSize: 7.5, color: '1E40AF', align: 'center', valign: 'middle' })
+      chipX += chipW + 0.1
+    }
+    skillY = chipY + 0.35
+
+    // Experience
+    const experience = profile.experience ?? []
+    if (experience.length) {
+      skillY += 0.1
+      slide.addText('EXPERIENCIA PROFESIONAL', { x: RX, y: skillY, w: 6, h: 0.28, fontSize: 9, bold: true, color: NAVY })
+      skillY += 0.28
+      slide.addShape(pptx.ShapeType.rect, { x: RX, y: skillY, w: 6, h: 0.025, fill: { color: NAVY } })
+      skillY += 0.12
+      for (const exp of experience.slice(0, 4)) {
+        if (skillY > 6.6) break
+        slide.addShape(pptx.ShapeType.rect, { x: RX, y: skillY, w: 0.05, h: 0.2, fill: { color: NAVY } })
+        const header = [exp.title, exp.client, exp.period].filter(Boolean).join(' · ')
+        slide.addText(header, { x: RX + 0.15, y: skillY, w: 5.8, h: 0.2, fontSize: 8.5, bold: true, color: '1E293B', wrap: true })
+        skillY += 0.22
+        if (exp.description) {
+          slide.addText(exp.description, { x: RX + 0.15, y: skillY, w: 5.8, h: 0.3, fontSize: 7.5, color: GRAY, wrap: true })
+          skillY += 0.35
+        }
+      }
+    }
+  }
+
+  // Footer
+  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 7.1, w: 10, h: 0.4, fill: { color: NAVY } })
+  slide.addText('bench. — Bip Consulting', { x: 0.3, y: 7.15, w: 5, h: 0.3, fontSize: 8, color: WHITE })
+
+  await pptx.writeFile({ fileName: `CV_${profile.name.replace(/\s+/g, '_')}.pptx` })
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+interface ConsultantCVProps {
+  profile: Profile
+  assignments?: ProjectAssignment[]
+  projects?: Project[]
+  onUpdate?: (updated: Profile) => void
+  readOnly?: boolean
+}
+
+export default function ConsultantCV({ profile, onUpdate, readOnly = false }: ConsultantCVProps) {
+  const [data, setData] = useState<Profile>(profile)
+  const printRef = useRef<HTMLDivElement>(null)
+
+  const update = (patch: Partial<Profile>) => {
+    const updated = { ...data, ...patch }
+    setData(updated)
+    onUpdate?.(updated)
+  }
+
+  const handlePrint = () => {
+    // inject print style if needed
+    if (!document.getElementById('cv-print-style')) {
+      const s = document.createElement('style')
+      s.id = 'cv-print-style'
+      s.textContent = PRINT_STYLE
+      document.head.appendChild(s)
+    }
+    window.print()
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* Toolbar */}
+      <div className="cv-no-print flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
+        <div className="flex items-center gap-1.5">
+          <FileText size={14} className="text-navy-600" />
+          <span className="text-sm font-medium text-slate-700">Hoja de Vida</span>
+          {!readOnly && <span className="text-xs text-slate-400 ml-1">· click on any field to edit</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+          >
+            <Download size={12} /> PDF
+          </button>
+          <button
+            onClick={() => exportToPptx(data)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-700 transition-colors"
+          >
+            <Presentation size={12} /> PowerPoint
+          </button>
+        </div>
+      </div>
+
+      <div id="cv-print-area" ref={printRef} className="flex min-h-[560px]">
+        {/* Left panel */}
+        <div className="w-56 shrink-0 bg-navy-800 text-white p-5 flex flex-col">
+          <div className="flex flex-col items-center mb-5">
+            <Avatar className="h-20 w-20 mb-3 ring-2 ring-white/30">
+              <AvatarFallback className="bg-navy-600 text-white text-xl font-bold">
+                {getInitials(data.name)}
+              </AvatarFallback>
+            </Avatar>
+            <h2 className="text-base font-bold text-center leading-tight">{data.name}</h2>
+            <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
+            <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
+              {data.seniority}
+            </Badge>
+            {data.practice_area && (
+              <p className="text-xs text-navy-300 mt-1 text-center">{data.practice_area}</p>
+            )}
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {/* Education */}
+            <div>
+              <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
+                <GraduationCap size={10} /> Educación
+              </div>
+              {!readOnly ? (
+                <EditableText
+                  value={data.education ?? ''}
+                  placeholder="Add education..."
+                  onSave={v => update({ education: v || null })}
+                  multiline
+                  className="text-white bg-navy-700 text-xs"
+                />
+              ) : (
+                <p className="text-white/90 leading-snug">{data.education || '—'}</p>
+              )}
+            </div>
+
+            {/* Languages */}
+            <div>
+              <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
+                <Globe size={10} /> Idiomas
+              </div>
+              {!readOnly ? (
+                <EditableText
+                  value={data.languages ?? ''}
+                  placeholder="e.g. Español, Inglés"
+                  onSave={v => update({ languages: v || null })}
+                  className="text-white bg-navy-700 text-xs"
+                />
+              ) : (
+                <p className="text-white/90">{data.languages || '—'}</p>
+              )}
+            </div>
+
+            {/* Experience */}
+            <div>
+              <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
+                <Briefcase size={10} /> Experiencia
+              </div>
+              {!readOnly ? (
+                <EditableText
+                  value={data.years_of_experience ? String(data.years_of_experience) : ''}
+                  placeholder="e.g. 8"
+                  onSave={v => update({ years_of_experience: v ? parseInt(v) || null : null })}
+                  className="text-white bg-navy-700 text-xs"
+                />
+              ) : (
+                <p className="text-white/90">
+                  {data.years_of_experience ? data.years_of_experience + ' años' : '—'}
+                </p>
+              )}
+            </div>
+
+            {/* Certifications */}
+            {(data.certifications?.length > 0 || !readOnly) && (
+              <div>
+                <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
+                  <Award size={10} /> Certificaciones
+                </div>
+                {!readOnly ? (
+                  <TagEditor
+                    tags={data.certifications ?? []}
+                    onUpdate={t => update({ certifications: t })}
+                    placeholder="Add cert…"
+                  />
+                ) : (
+                  <p className="text-white/90">{data.certifications?.join(', ') || '—'}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* Bio */}
+          <Section icon={<FileText size={13} />} title="Resumen Profesional">
+            {!readOnly ? (
+              <EditableText
+                value={data.bio ?? ''}
+                placeholder="Write a professional summary..."
+                onSave={v => update({ bio: v || null })}
+                multiline
+                className="leading-relaxed"
+              />
+            ) : (
+              <p className="text-sm text-slate-700 leading-relaxed">{data.bio || '—'}</p>
+            )}
+          </Section>
+
+          {/* Skills */}
+          <Section icon={<Wrench size={13} />} title="Competencias">
+            {!readOnly ? (
+              <TagEditor
+                tags={data.skills}
+                onUpdate={t => update({ skills: t })}
+                placeholder="Add skill…"
+              />
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {data.skills.map(s => (
+                  <span key={s} className="rounded-full bg-navy-50 border border-navy-100 px-2.5 py-0.5 text-xs text-navy-700">{s}</span>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {/* Experience */}
+          <Section icon={<Briefcase size={13} />} title="Experiencia Profesional">
+            {!readOnly ? (
+              <ExperienceEditor
+                entries={data.experience ?? []}
+                onUpdate={exp => update({ experience: exp })}
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {(data.experience ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-400 italic">Sin experiencia registrada.</p>
+                ) : (
+                  (data.experience ?? []).map(exp => (
+                    <div key={exp.id} className="flex gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                      <div className="w-1 shrink-0 rounded-full bg-navy-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-navy-800 leading-snug">{exp.title}</p>
+                        {(exp.client || exp.period) && (
+                          <p className="text-xs text-slate-500 mt-0.5">{[exp.client, exp.period].filter(Boolean).join(' · ')}</p>
+                        )}
+                        {exp.description && (
+                          <p className="text-xs text-slate-600 mt-1 leading-relaxed">{exp.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </Section>
+        </div>
+      </div>
+    </div>
+  )
+}
