@@ -169,19 +169,32 @@ export default function AutoStaffingPlan({
                   return (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2"
+                      className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-navy-800">{p.name}</p>
-                        <p className="text-xs text-slate-500">
-                          {p.client} · starts {formatDate(p.start_date)}
-                        </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-navy-800">{p.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {p.client} · starts {formatDate(p.start_date)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <Badge variant={p.status === 'Partially Staffed' ? 'partial' : 'open'} className="text-xs">
+                            {p.status}
+                          </Badge>
+                          <p className="mt-0.5 text-xs text-slate-400">{slots} slot{slots !== 1 ? 's' : ''} open</p>
+                        </div>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <Badge variant={p.status === 'Partially Staffed' ? 'partial' : 'open'} className="text-xs">
-                          {p.status}
-                        </Badge>
-                        <p className="mt-0.5 text-xs text-slate-400">{slots} slot{slots !== 1 ? 's' : ''} open</p>
+                      <p className="mt-1 text-xs text-slate-500 italic">{p.description}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {p.skills_required.map((s) => (
+                          <span
+                            key={s}
+                            className="rounded-full bg-navy-800/10 px-2 py-0.5 text-xs text-navy-800"
+                          >
+                            {s}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   )
