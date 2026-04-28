@@ -327,6 +327,11 @@ export default function AutoStaffingPlan({
                                 <div className="flex items-center gap-1.5">
                                   <p className="text-sm font-medium text-navy-800">{result.consultant.name}</p>
                                   {result.hasLiked && <Heart size={11} className="fill-bip-red text-bip-red" />}
+                                  {result.isStretch && (
+                                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                                      Best available
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="truncate text-xs text-slate-500">{result.reason}</p>
                                 {result.vacationWarning && (

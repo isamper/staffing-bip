@@ -100,6 +100,8 @@ export interface MatchResult {
   reason: string
   vacationWarning?: string
   hasLiked: boolean
+  isStretch?: boolean      // seniority mismatch — best available, not ideal
+  unavailable?: boolean    // no capacity — excluded from suggestions
 }
 
 export interface Notification {

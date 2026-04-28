@@ -181,11 +181,16 @@ export function scoreConsultantForPosition(
   score += skillScore
   reasons.push(`Matches ${matched.length}/${position.skills.length} skills for ${position.role}`)
 
-  // Capacity check
+  // Capacity check — mark unavailable, don't score further
   const usedDedication = totalDedicationDuringProject(consultant.id, project, assignments)
   if (usedDedication >= 100) {
-    reasons.push('No capacity during project period')
-    return { consultant, score: 0, reason: reasons.join('. ') + '.', hasLiked: false }
+    return {
+      consultant,
+      score: 0,
+      reason: 'No capacity during project period.',
+      hasLiked: false,
+      unavailable: true,
+    }
   }
 
   // Availability (0–25)
@@ -207,18 +212,25 @@ export function scoreConsultantForPosition(
     reasons.push('Available now')
   }
 
-  // Seniority match (0–20) against position seniority directly
+  // Seniority match (0–20) — partial credit for adjacent levels
   const neededLevel = SENIORITY_ORDER[position.seniority] ?? 0
   const consultantLevel = SENIORITY_ORDER[consultant.seniority] ?? 0
   const diff = Math.abs(consultantLevel - neededLevel)
+  let isStretch = false
   if (diff === 0) {
     score += 20
     reasons.push(`Seniority match: ${consultant.seniority}`)
   } else if (diff === 1) {
     score += 10
+    isStretch = true
     reasons.push(`Near seniority: ${consultant.seniority} (role needs ${position.seniority})`)
+  } else if (diff === 2) {
+    score += 5
+    isStretch = true
+    reasons.push(`Best available — seniority gap: ${consultant.seniority} vs. ${position.seniority} needed`)
   } else {
-    reasons.push(`Seniority gap: ${consultant.seniority} (role needs ${position.seniority})`)
+    isStretch = true
+    reasons.push(`Stretch — seniority gap: ${consultant.seniority} vs. ${position.seniority} needed`)
   }
 
   // Interest signal (+10)
@@ -253,6 +265,7 @@ export function scoreConsultantForPosition(
     reason: reasons.join('. ') + '.',
     vacationWarning,
     hasLiked,
+    isStretch,
   }
 }
 
@@ -267,7 +280,7 @@ export function matchConsultantsForPosition(
   return consultants
     .filter((c) => c.is_active)
     .map((c) => scoreConsultantForPosition(c, position, project, likes, vacations, assignments))
-    .filter((r) => r.score > 0)
+    .filter((r) => !r.unavailable)  // exclude only truly unavailable (no capacity)
     .sort((a, b) => b.score - a.score)
 }
 
