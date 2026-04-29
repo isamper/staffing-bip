@@ -20,24 +20,6 @@ const SENIORITY_OPTIONS: Profile['seniority'][] = [
   'Manager', 'Senior Manager', 'Director', 'Partner', 'Senior Partner',
 ]
 
-const ROLE_TITLE_OPTIONS = [
-  'Intern',
-  'Business Analyst',
-  'Consultant',
-  'Senior Business Analyst',
-  'Senior Consultant',
-  'Associate Manager',
-  'Manager',
-  'Project Manager',
-  'Engagement Manager',
-  'Senior Manager',
-  'Director',
-  'Partner',
-  'Senior Partner',
-  'HR Manager',
-  'HR Admin',
-]
-
 export default function Login() {
   const { signIn, signUp, profile } = useAuth()
   const navigate = useNavigate()
@@ -50,7 +32,6 @@ export default function Login() {
   // Sign up fields
   const [name, setName] = useState('')
   const [signUpEmail, setSignUpEmail] = useState('')
-  const [roleTitle, setRoleTitle] = useState('')
   const [seniority, setSeniority] = useState<Profile['seniority']>('Consultant')
   const [signUpPassword, setSignUpPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -79,7 +60,6 @@ export default function Login() {
 
     if (!name.trim()) { setError('Full name is required'); return }
     if (!signUpEmail.endsWith('@bip-group.com')) { setError('Only @bip-group.com email addresses are allowed'); return }
-    if (!roleTitle) { setError('Role title is required'); return }
     if (signUpPassword.length < 6) { setError('Password must be at least 6 characters'); return }
     if (signUpPassword !== confirmPassword) { setError('Passwords do not match'); return }
 
@@ -88,7 +68,7 @@ export default function Login() {
       email: signUpEmail,
       password: signUpPassword,
       name: name.trim(),
-      role_title: roleTitle.trim(),
+      role_title: seniority,
       seniority,
     })
     setLoading(false)
@@ -167,16 +147,7 @@ export default function Login() {
                   <Input type="email" placeholder="firstname.lastname@bip-group.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Role Title</Label>
-                  <Select value={roleTitle} onValueChange={setRoleTitle}>
-                    <SelectTrigger><SelectValue placeholder="Select your role" /></SelectTrigger>
-                    <SelectContent>
-                      {ROLE_TITLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Seniority</Label>
+                  <Label>Role</Label>
                   <Select value={seniority} onValueChange={(v) => setSeniority(v as Profile['seniority'])}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -204,7 +175,7 @@ export default function Login() {
               <div className="py-4 text-center">
                 <p className="text-2xl mb-2">✓</p>
                 <p className="font-medium text-navy-800">Account created!</p>
-                <p className="mt-1 text-sm text-slate-500">You can now sign in with your email and password.</p>
+                <p className="mt-1 text-sm text-slate-500">Check your email to confirm your account, then sign in.</p>
                 <Button className="mt-4 w-full" onClick={() => { setMode('signin'); setSignedUp(false) }}>
                   Go to Sign in
                 </Button>
