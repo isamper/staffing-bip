@@ -3,10 +3,19 @@ import { supabase, isDemoMode } from '@/lib/supabase'
 import { DEMO_USERS, mockConsultants } from '@/lib/mockData'
 import type { Profile } from '@/lib/types'
 
+interface SignUpData {
+  email: string
+  password: string
+  name: string
+  role_title: string
+  seniority: Profile['seniority']
+}
+
 interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signUp: (data: SignUpData) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -89,6 +98,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }
 
+  async function signUp({ email, password, name, role_title, seniority }: SignUpData): Promise<{ error: string | null }> {
+    if (!email.endsWith('@bip-group.com')) {
+      return { error: 'Only @bip-group.com email addresses are allowed' }
+    }
+
+    const { data, error } = await supabase!.auth.signUp({ email, password })
+    if (error) return { error: error.message }
+    if (!data.user) return { error: 'Sign up failed, please try again' }
+
+    const { error: profileError } = await supabase!.from('profiles').insert({
+      id: data.user.id,
+      name,
+      role_title,
+      seniority,
+      user_role: 'consultant',
+      skills: [],
+      is_active: true,
+    })
+
+    if (profileError) return { error: profileError.message }
+    return { error: null }
+  }
+
   async function signOut() {
     if (isDemoMode) {
       setProfile(null)
@@ -100,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ profile, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )
