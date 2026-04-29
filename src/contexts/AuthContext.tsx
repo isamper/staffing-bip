@@ -103,21 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Only @bip-group.com email addresses are allowed' }
     }
 
-    const { data, error } = await supabase!.auth.signUp({ email, password })
-    if (error) return { error: error.message }
-    if (!data.user) return { error: 'Sign up failed, please try again' }
-
-    const { error: profileError } = await supabase!.from('profiles').insert({
-      id: data.user.id,
-      name,
-      role_title,
-      seniority,
-      user_role: 'consultant',
-      skills: [],
-      is_active: true,
+    // Pass name/role/seniority as metadata — a DB trigger reads this and
+    // creates the profile row automatically (bypasses RLS on email confirmation)
+    const { error } = await supabase!.auth.signUp({
+      email,
+      password,
+      options: { data: { name, role_title, seniority } },
     })
 
-    if (profileError) return { error: profileError.message }
+    if (error) return { error: error.message }
     return { error: null }
   }
 
