@@ -107,17 +107,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message }
     if (!data.user) return { error: 'Sign up failed, please try again' }
 
-    const { error: profileError } = await supabase!.from('profiles').insert({
-      id: data.user.id,
-      name,
-      role_title,
-      seniority,
-      user_role: 'consultant',
-      skills: [],
-      is_active: true,
-    })
+    // Check if a pre-seeded profile exists for this email
+    const { data: existing } = await supabase!
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
 
-    if (profileError) return { error: profileError.message }
+    if (existing) {
+      // Link the pre-seeded profile to the new auth user
+      const { error: linkError } = await supabase!
+        .from('profiles')
+        .update({ id: data.user.id })
+        .eq('email', email)
+      if (linkError) return { error: linkError.message }
+    } else {
+      // New consultant — insert fresh profile
+      const { error: profileError } = await supabase!.from('profiles').insert({
+        id: data.user.id,
+        email,
+        name,
+        role_title,
+        seniority,
+        user_role: 'consultant',
+        skills: [],
+        is_active: true,
+      })
+      if (profileError) return { error: profileError.message }
+    }
+
     return { error: null }
   }
 

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Heart, Calendar, Briefcase, Clock, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import Layout from '@/components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -117,7 +118,23 @@ export default function EmployeeDashboard() {
           profile={profile}
           assignments={mockAssignments}
           projects={mockProjects}
-          onUpdate={(updated) => setMyProfile(updated)}
+          onUpdate={async (updated) => {
+            setMyProfile(updated)
+            if (!isDemoMode && supabase) {
+              await supabase.from('profiles').update({
+                name: updated.name,
+                role_title: updated.role_title,
+                seniority: updated.seniority,
+                skills: updated.skills,
+                bio: updated.bio,
+                education: updated.education,
+                languages: updated.languages,
+                years_of_experience: updated.years_of_experience,
+                certifications: updated.certifications,
+                experience: updated.experience,
+              }).eq('id', updated.id)
+            }
+          }}
         />
       )}
 
