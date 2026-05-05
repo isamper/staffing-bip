@@ -1,11 +1,14 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   Pencil, X, Check, Download, FileText, Presentation,
-  GraduationCap, Globe, Briefcase, Award, Wrench, Plus, Camera,
+  GraduationCap, Globe, Briefcase, Award, Wrench, Plus, Camera, ZoomIn, ZoomOut,
 } from 'lucide-react'
+import Cropper from 'react-easy-crop'
+import type { Area } from 'react-easy-crop'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
+import { SUGGESTED_SKILLS } from '@/lib/skills'
 import type { Profile, ProjectAssignment, Project, ExperienceEntry } from '@/lib/types'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -69,19 +72,23 @@ function EditableText({
 }
 
 function TagEditor({
-  tags, onUpdate, placeholder,
+  tags, onUpdate, placeholder, suggestions,
 }: {
-  tags: string[]; onUpdate: (t: string[]) => void; placeholder: string
+  tags: string[]; onUpdate: (t: string[]) => void; placeholder: string; suggestions?: string[]
 }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const add = () => {
-    const t = draft.trim()
+  const add = (value: string) => {
+    const t = value.trim()
     if (t && !tags.includes(t)) onUpdate([...tags, t])
     setDraft('')
     setAdding(false)
   }
+
+  const filtered = suggestions
+    ? suggestions.filter(s => !tags.includes(s) && s.toLowerCase().includes(draft.toLowerCase()))
+    : []
 
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
@@ -98,24 +105,50 @@ function TagEditor({
         </span>
       ))}
       {adding ? (
-        <span className="inline-flex items-center gap-1">
-          <input
-            className="w-32 rounded-full border border-navy-300 px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-navy-400"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') { setDraft(''); setAdding(false) } }}
-            autoFocus
-            placeholder={placeholder}
-          />
-          <button onClick={add} className="text-green-600 hover:text-green-700"><Check size={12} /></button>
-          <button onClick={() => { setDraft(''); setAdding(false) }} className="text-slate-400"><X size={12} /></button>
-        </span>
+        <div className="relative">
+          <span className="inline-flex items-center gap-1">
+            <input
+              className="w-40 rounded-full border border-navy-300 px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-navy-400"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') add(draft)
+                if (e.key === 'Escape') { setDraft(''); setAdding(false) }
+              }}
+              autoFocus
+              placeholder={placeholder}
+            />
+            <button onClick={() => add(draft)} className="text-green-600 hover:text-green-700"><Check size={12} /></button>
+            <button onClick={() => { setDraft(''); setAdding(false) }} className="text-slate-400"><X size={12} /></button>
+          </span>
+          {filtered.length > 0 && (
+            <div className="absolute top-full left-0 z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+              {filtered.slice(0, 20).map(s => (
+                <button
+                  key={s}
+                  onMouseDown={e => { e.preventDefault(); add(s) }}
+                  className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-navy-50 hover:text-navy-700"
+                >
+                  {s}
+                </button>
+              ))}
+              {draft.trim() && !suggestions?.includes(draft.trim()) && (
+                <button
+                  onMouseDown={e => { e.preventDefault(); add(draft) }}
+                  className="w-full border-t border-slate-100 px-3 py-1.5 text-left text-xs text-slate-400 hover:bg-slate-50 italic"
+                >
+                  + Agregar "{draft.trim()}"
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <button
           onClick={() => setAdding(true)}
           className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400 hover:border-navy-400 hover:text-navy-600 transition-colors"
         >
-          <Plus size={10} /> Add
+          <Plus size={10} /> Agregar
         </button>
       )}
     </div>
@@ -224,6 +257,74 @@ function ExperienceEditor({
           <Plus size={14} /> Agregar experiencia
         </button>
       )}
+    </div>
+  )
+}
+
+// ── Photo crop ───────────────────────────────────────────────────────────────
+
+async function getCroppedImg(imageSrc: string, cropArea: Area): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = imageSrc
+  })
+  const canvas = document.createElement('canvas')
+  canvas.width = cropArea.width
+  canvas.height = cropArea.height
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(img, cropArea.x, cropArea.y, cropArea.width, cropArea.height, 0, 0, cropArea.width, cropArea.height)
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+function PhotoCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url: string) => void; onCancel: () => void }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null)
+
+  const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
+    setCroppedArea(areaPixels)
+  }, [])
+
+  const handleConfirm = async () => {
+    if (!croppedArea) return
+    const url = await getCroppedImg(src, croppedArea)
+    onConfirm(url)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-700">Ajustar foto</p>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+        </div>
+        <div className="relative h-64 bg-slate-900">
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            cropShape="round"
+            showGrid={false}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+          />
+        </div>
+        <div className="px-4 py-3 flex items-center gap-2">
+          <ZoomOut size={14} className="text-slate-400 shrink-0" />
+          <input
+            type="range" min={1} max={3} step={0.05}
+            value={zoom}
+            onChange={e => setZoom(Number(e.target.value))}
+            className="flex-1 accent-navy-800"
+          />
+          <ZoomIn size={14} className="text-slate-400 shrink-0" />
+        </div>
+        <div className="px-4 pb-4 flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-lg border border-slate-200 px-4 py-1.5 text-xs text-slate-600 hover:bg-slate-50">Cancelar</button>
+          <button onClick={handleConfirm} className="rounded-lg bg-navy-800 px-4 py-1.5 text-xs text-white hover:bg-navy-700">Guardar</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -365,6 +466,7 @@ interface ConsultantCVProps {
 
 export default function ConsultantCV({ profile, onUpdate, readOnly = false }: ConsultantCVProps) {
   const [data, setData] = useState<Profile>(profile)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -372,11 +474,9 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string
-      update({ photo_url: url })
-    }
+    reader.onload = (ev) => setCropSrc(ev.target?.result as string)
     reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   const update = (patch: Partial<Profile>) => {
@@ -397,6 +497,14 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
   }
 
   return (
+    <>
+    {cropSrc && (
+      <PhotoCropModal
+        src={cropSrc}
+        onConfirm={(url) => { update({ photo_url: url }); setCropSrc(null) }}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
       {/* Toolbar */}
       <div className="cv-no-print flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
@@ -564,7 +672,8 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               <TagEditor
                 tags={data.skills}
                 onUpdate={t => update({ skills: t })}
-                placeholder="Agregar competencia..."
+                placeholder="Buscar o escribir competencia..."
+                suggestions={SUGGESTED_SKILLS.flatMap(g => g.skills)}
               />
             ) : (
               <div className="flex flex-wrap gap-1.5">
@@ -608,5 +717,6 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
         </div>
       </div>
     </div>
+    </>
   )
 }
