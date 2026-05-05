@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Users, Zap, Clock, FolderOpen, Search, Heart, Plus,
+  Search, Heart,
   CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
@@ -23,7 +23,6 @@ import { MAX_CARGABILITY } from '@/lib/constants'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import PeopleTab from '@/components/PeopleTab'
 import AutoStaffingPlan from '@/components/AutoStaffingPlan'
-import NewProjectDialog from '@/components/NewProjectDialog'
 import type { Profile, Project, VacationRequest, ProjectAssignment } from '@/lib/types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -50,28 +49,6 @@ function getTotalDedication(
 }
 
 // ─── sub-components ──────────────────────────────────────────────────────────
-
-function StatCard({ icon: Icon, label, value, color = 'navy' }: {
-  icon: React.ElementType
-  label: string
-  value: number
-  color?: 'navy' | 'red' | 'amber' | 'green'
-}) {
-  const bg = { navy: 'bg-navy-800', red: 'bg-bip-red', amber: 'bg-amber-500', green: 'bg-green-600' }[color]
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${bg}`}>
-          <Icon size={20} className="text-white" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-navy-800">{value}</p>
-          <p className="text-sm text-slate-500">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 function ProjectCard({
   project,
@@ -241,25 +218,12 @@ export default function AdminDashboard() {
   const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
-  const [showNewProject, setShowNewProject] = useState(false)
-
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
   const visibleProjects = projects.filter((p) => new Date(p.end_date) >= today)
   const upcomingProjects = visibleProjects.filter((p) => p.status !== 'Active')
   const activeProjects = visibleProjects.filter((p) => p.status === 'Active')
-
-  const totalHeadcount = mockConsultants.filter((c) => c.is_active).length
-  const availableNow = mockConsultants.filter(
-    (c) => c.is_active && isAvailableNow(c.available_from),
-  ).length
-  const rollingOff = mockConsultants.filter((c) => {
-    if (!c.available_from) return false
-    const d = new Date(c.available_from)
-    return d > today && d <= in30
-  }).length
-  const openProjectsCount = upcomingProjects.length
 
   const filteredConsultants = mockConsultants.filter(
     (c) =>
@@ -312,28 +276,11 @@ export default function AdminDashboard() {
     setReplacementsFor((prev) => (prev === consultantId ? null : consultantId))
   }
 
-  function handleAddProject(project: Project) {
-    setProjects((prev) => [...prev, project])
-  }
-
   return (
     <Layout>
-      <NewProjectDialog
-        open={showNewProject}
-        onClose={() => setShowNewProject(false)}
-        onAdd={handleAddProject}
-      />
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
         <p className="text-sm text-slate-500">Manage your consulting team and projects</p>
-      </div>
-
-      {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard icon={Users} label="Total Headcount" value={totalHeadcount} />
-        <StatCard icon={Zap} label="Available Now" value={availableNow} color="green" />
-        <StatCard icon={Clock} label="Rolling Off (30d)" value={rollingOff} color="amber" />
-        <StatCard icon={FolderOpen} label="Needs Staffing" value={openProjectsCount} color="red" />
       </div>
 
       <Tabs defaultValue="projects">
@@ -353,11 +300,6 @@ export default function AdminDashboard() {
 
         {/* Projects tab */}
         <TabsContent value="projects">
-          <div className="mb-3 flex justify-end">
-            <Button size="sm" className="gap-1.5" onClick={() => setShowNewProject(true)}>
-              <Plus size={14} /> New Project
-            </Button>
-          </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Project list */}
             <div className="space-y-4">

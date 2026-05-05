@@ -14,6 +14,7 @@ interface ProjectInfo {
   name: string
   dedication: number
   endDate: string
+  assignedAt: string
 }
 
 interface ConsultantStats {
@@ -114,16 +115,27 @@ function ConsultantRow({ stats, onClick }: { stats: ConsultantStats; onClick: ()
           <p className="text-xs text-slate-400 mt-1">No current assignments</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {projectsInfo.map((p, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded-full bg-navy-50 border border-navy-100 px-2 py-0.5 text-xs text-navy-700"
-              >
-                <span className="font-medium">{p.dedication}%</span>
-                <span className="text-navy-500">{p.name}</span>
-                <span className="text-navy-300">· {formatDate(p.endDate)}</span>
-              </span>
-            ))}
+            {projectsInfo.map((p, i) => {
+              const months = Math.floor((Date.now() - new Date(p.assignedAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+              const tenureColor = months > 12
+                ? 'bg-red-100 text-red-700 border-red-200'
+                : months >= 6
+                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                : 'bg-green-100 text-green-700 border-green-200'
+              return (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded-full bg-navy-50 border border-navy-100 px-2 py-0.5 text-xs text-navy-700"
+                >
+                  <span className="font-medium">{p.dedication}%</span>
+                  <span className="text-navy-500">{p.name}</span>
+                  <span className="text-navy-300">· {formatDate(p.endDate)}</span>
+                  <span className={`ml-0.5 rounded-full border px-1.5 py-px text-xs font-semibold ${tenureColor}`}>
+                    {months}mo
+                  </span>
+                </span>
+              )
+            })}
           </div>
         )}
         {/* Skills */}
@@ -188,7 +200,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
         .map((a) => {
           const proj = mockProjects.find((p) => p.id === a.project_id)
           return proj
-            ? { name: proj.name, dedication: a.dedication_percentage, endDate: a.end_date ?? proj.end_date }
+            ? { name: proj.name, dedication: a.dedication_percentage, endDate: a.end_date ?? proj.end_date, assignedAt: a.assigned_at }
             : null
         })
         .filter((x): x is ProjectInfo => x !== null)
