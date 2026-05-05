@@ -295,6 +295,7 @@ export default function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="people">People</TabsTrigger>
+          <TabsTrigger value="staffing">Staffing Plan</TabsTrigger>
           <TabsTrigger value="timeoff">
             Time Off
             {pendingVacations.length > 0 && (
@@ -303,7 +304,6 @@ export default function AdminDashboard() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="staffing">Staffing Plan</TabsTrigger>
         </TabsList>
 
         {/* Projects tab */}
