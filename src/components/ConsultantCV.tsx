@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import {
   Pencil, X, Check, Download, FileText, Presentation,
-  GraduationCap, Globe, Briefcase, Award, Wrench, Plus,
+  GraduationCap, Globe, Briefcase, Award, Wrench, Plus, Camera,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -23,20 +23,22 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 }
 
 function EditableText({
-  value, placeholder, onSave, multiline = false, className = '',
+  value, placeholder, onSave, multiline = false, className = '', inputClassName = '',
 }: {
   value: string; placeholder: string; onSave: (v: string) => void
-  multiline?: boolean; className?: string
+  multiline?: boolean; className?: string; inputClassName?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
+
+  const inputCls = inputClassName || 'bg-white text-slate-800'
 
   if (editing) {
     return (
       <div className="flex gap-1 items-start">
         {multiline ? (
           <textarea
-            className={`flex-1 rounded border border-navy-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 resize-none ${className}`}
+            className={`flex-1 rounded border border-navy-300 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 resize-none ${inputCls}`}
             value={draft}
             rows={4}
             onChange={e => setDraft(e.target.value)}
@@ -44,22 +46,22 @@ function EditableText({
           />
         ) : (
           <input
-            className={`flex-1 rounded border border-navy-300 bg-white px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 ${className}`}
+            className={`flex-1 rounded border border-navy-300 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 ${inputCls}`}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             autoFocus
           />
         )}
-        <button onClick={() => { onSave(draft); setEditing(false) }} className="text-green-600 hover:text-green-700 mt-1"><Check size={14} /></button>
-        <button onClick={() => { setDraft(value); setEditing(false) }} className="text-slate-400 hover:text-slate-600 mt-1"><X size={14} /></button>
+        <button onClick={() => { onSave(draft); setEditing(false) }} className="text-green-400 hover:text-green-300 mt-1"><Check size={14} /></button>
+        <button onClick={() => { setDraft(value); setEditing(false) }} className="text-slate-400 hover:text-slate-300 mt-1"><X size={14} /></button>
       </div>
     )
   }
 
   return (
     <div className="group flex items-start gap-1 cursor-text" onClick={() => { setDraft(value); setEditing(true) }}>
-      <span className={`flex-1 text-sm ${value ? 'text-slate-700' : 'text-slate-300 italic'} ${className}`}>
-        {value || placeholder}
+      <span className={`flex-1 text-sm ${className}`}>
+        {value || <span className="italic opacity-40">{placeholder}</span>}
       </span>
       <Pencil size={11} className="shrink-0 mt-0.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
@@ -364,6 +366,18 @@ interface ConsultantCVProps {
 export default function ConsultantCV({ profile, onUpdate, readOnly = false }: ConsultantCVProps) {
   const [data, setData] = useState<Profile>(profile)
   const printRef = useRef<HTMLDivElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string
+      update({ photo_url: url })
+    }
+    reader.readAsDataURL(file)
+  }
 
   const update = (patch: Partial<Profile>) => {
     const updated = { ...data, ...patch }
@@ -389,7 +403,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
         <div className="flex items-center gap-1.5">
           <FileText size={14} className="text-navy-600" />
           <span className="text-sm font-medium text-slate-700">Hoja de Vida</span>
-          {!readOnly && <span className="text-xs text-slate-400 ml-1">· click on any field to edit</span>}
+          {!readOnly && <span className="text-xs text-slate-400 ml-1">· haz clic en cualquier campo para editar</span>}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -411,11 +425,34 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
         {/* Left panel */}
         <div className="w-56 shrink-0 bg-navy-800 text-white p-5 flex flex-col">
           <div className="flex flex-col items-center mb-5">
-            <Avatar className="h-20 w-20 mb-3 ring-2 ring-white/30">
-              <AvatarFallback className="bg-navy-600 text-white text-xl font-bold">
-                {getInitials(data.name)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative mb-3 group/avatar">
+              <Avatar className="h-20 w-20 ring-2 ring-white/30">
+                {data.photo_url ? (
+                  <img src={data.photo_url} alt={data.name} className="h-full w-full object-cover rounded-full" />
+                ) : (
+                  <AvatarFallback className="bg-navy-600 text-white text-xl font-bold">
+                    {getInitials(data.name)}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              {!readOnly && (
+                <>
+                  <button
+                    onClick={() => photoInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover/avatar:opacity-100 transition-opacity"
+                  >
+                    <Camera size={18} className="text-white" />
+                  </button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoChange}
+                  />
+                </>
+              )}
+            </div>
             <h2 className="text-base font-bold text-center leading-tight">{data.name}</h2>
             <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
             <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
@@ -435,10 +472,11 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               {!readOnly ? (
                 <EditableText
                   value={data.education ?? ''}
-                  placeholder="Add education..."
+                  placeholder="Agregar educación..."
                   onSave={v => update({ education: v || null })}
                   multiline
-                  className="text-white bg-navy-700 text-xs"
+                  className="text-white/90 text-xs leading-snug"
+                  inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
               ) : (
                 <p className="text-white/90 leading-snug">{data.education || '—'}</p>
@@ -453,9 +491,10 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               {!readOnly ? (
                 <EditableText
                   value={data.languages ?? ''}
-                  placeholder="e.g. Español, Inglés"
+                  placeholder="Ej. Español, Inglés"
                   onSave={v => update({ languages: v || null })}
-                  className="text-white bg-navy-700 text-xs"
+                  className="text-white/90 text-xs"
+                  inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
               ) : (
                 <p className="text-white/90">{data.languages || '—'}</p>
@@ -470,9 +509,10 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               {!readOnly ? (
                 <EditableText
                   value={data.years_of_experience ? String(data.years_of_experience) : ''}
-                  placeholder="e.g. 8"
+                  placeholder="Ej. 8"
                   onSave={v => update({ years_of_experience: v ? parseInt(v) || null : null })}
-                  className="text-white bg-navy-700 text-xs"
+                  className="text-white/90 text-xs"
+                  inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
               ) : (
                 <p className="text-white/90">
@@ -491,7 +531,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
                   <TagEditor
                     tags={data.certifications ?? []}
                     onUpdate={t => update({ certifications: t })}
-                    placeholder="Add cert…"
+                    placeholder="Agregar certificación..."
                   />
                 ) : (
                   <p className="text-white/90">{data.certifications?.join(', ') || '—'}</p>
@@ -508,10 +548,10 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             {!readOnly ? (
               <EditableText
                 value={data.bio ?? ''}
-                placeholder="Write a professional summary..."
+                placeholder="Escribe un resumen profesional..."
                 onSave={v => update({ bio: v || null })}
                 multiline
-                className="leading-relaxed"
+                className="text-slate-700 leading-relaxed"
               />
             ) : (
               <p className="text-sm text-slate-700 leading-relaxed">{data.bio || '—'}</p>
@@ -524,7 +564,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               <TagEditor
                 tags={data.skills}
                 onUpdate={t => update({ skills: t })}
-                placeholder="Add skill…"
+                placeholder="Agregar competencia..."
               />
             ) : (
               <div className="flex flex-wrap gap-1.5">

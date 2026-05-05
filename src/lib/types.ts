@@ -27,6 +27,7 @@ export interface Profile {
   is_active: boolean
   created_at: string
   // CV fields (editable by consultant)
+  photo_url?: string | null
   bio: string | null
   education: string | null
   languages: string | null
