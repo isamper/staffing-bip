@@ -61,6 +61,14 @@ function ProjectCard({
   selected: boolean
   onClick: () => void
 }) {
+  const derivedStatus = project.status === 'Active'
+    ? 'Active'
+    : assigned === 0
+    ? 'Open'
+    : assigned >= project.team_size
+    ? 'Fully Staffed'
+    : 'Partially Staffed'
+
   return (
     <button
       onClick={onClick}
@@ -70,13 +78,13 @@ function ProjectCard({
     >
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium text-navy-800 text-sm">{project.name}</p>
-        <Badge variant={projectStatusVariant(project.status)} className="shrink-0 text-xs">
-          {project.status}
+        <Badge variant={projectStatusVariant(derivedStatus)} className="shrink-0 text-xs">
+          {derivedStatus}
         </Badge>
       </div>
       <p className="mt-0.5 text-xs text-slate-500">{project.client}</p>
       <p className="mt-1 text-xs text-slate-400">
-        {project.status === 'Active'
+        {derivedStatus === 'Active'
           ? `${assigned} staffed · Ends ${formatDate(project.end_date)}`
           : `${assigned}/${project.team_size} staffed · Starts ${formatDate(project.start_date)}`}
       </p>
