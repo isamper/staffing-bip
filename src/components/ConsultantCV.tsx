@@ -27,17 +27,18 @@ const ROLE_TITLES = [
   'Gerente Senior de Arquitectura TI',
 ]
 
-const SENIORITY_ES: Record<string, string> = {
-  'Senior Partner': 'Socio Senior',
-  'Partner': 'Socio',
+// Maps Spanish display title → Kimble English seniority value
+const TITLE_TO_SENIORITY: Record<string, Profile['seniority']> = {
+  'Socio Senior': 'Senior Partner',
+  'Socio': 'Partner',
   'Director': 'Director',
-  'Senior Manager': 'Gerente Senior',
-  'Manager': 'Gerente',
-  'Senior Associate': 'Asociado Senior',
-  'Associate': 'Asociado',
-  'Senior Consultant': 'Consultor Senior',
-  'Consultant': 'Consultor',
-  'Intern': 'Practicante',
+  'Gerente Senior': 'Senior Manager',
+  'Gerente': 'Manager',
+  'Asociado Senior': 'Senior Associate',
+  'Asociado': 'Associate',
+  'Consultor Senior': 'Senior Consultant',
+  'Consultor': 'Consultant',
+  'Practicante': 'Intern',
 }
 import type { Profile, ProjectAssignment, Project, ExperienceEntry } from '@/lib/types'
 
@@ -596,7 +597,11 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               <div className="mt-1 text-center">
                 <select
                   value={data.role_title}
-                  onChange={e => update({ role_title: e.target.value })}
+                  onChange={e => {
+                    const title = e.target.value
+                    const seniority = TITLE_TO_SENIORITY[title]
+                    update({ role_title: title, ...(seniority ? { seniority } : {}) })
+                  }}
                   className="w-full rounded bg-navy-700 border border-navy-500 px-2 py-1 text-xs text-navy-100 italic text-center outline-none focus:border-navy-300"
                 >
                   {ROLE_TITLES.map(r => (
@@ -608,7 +613,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
             )}
             <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
-              {SENIORITY_ES[data.seniority] ?? data.seniority}
+              {data.seniority}
             </Badge>
             {data.practice_area && (
               <p className="text-xs text-navy-300 mt-1 text-center">{data.practice_area}</p>
