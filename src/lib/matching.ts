@@ -170,17 +170,6 @@ export function scoreConsultantForPosition(
   let score = 0
   const reasons: string[] = []
 
-  // Skills overlap (0–40) against position skills
-  const matched = position.skills.filter((s) =>
-    consultant.skills.map((cs) => cs.toLowerCase()).includes(s.toLowerCase()),
-  )
-  const skillScore =
-    position.skills.length > 0
-      ? Math.round((matched.length / position.skills.length) * 40)
-      : 0
-  score += skillScore
-  reasons.push(`Matches ${matched.length}/${position.skills.length} skills for ${position.role}`)
-
   // Capacity check — mark unavailable, don't score further
   const usedDedication = totalDedicationDuringProject(consultant.id, project, assignments)
   if (usedDedication >= 100) {
@@ -193,6 +182,36 @@ export function scoreConsultantForPosition(
     }
   }
 
+  // Skills overlap (0–30) — only when position has skills defined
+  if (position.skills.length > 0) {
+    const matched = position.skills.filter((s) =>
+      consultant.skills.map((cs) => cs.toLowerCase()).includes(s.toLowerCase()),
+    )
+    const skillScore = Math.round((matched.length / position.skills.length) * 30)
+    score += skillScore
+    reasons.push(`${matched.length}/${position.skills.length} skills requeridas`)
+  }
+
+  // Industry match (0–20)
+  if (project.industry && project.industry !== 'Other' && consultant.industry_experience?.length) {
+    if (consultant.industry_experience.includes(project.industry)) {
+      score += 20
+      reasons.push(`Experiencia en ${project.industry}`)
+    } else {
+      reasons.push(`Sin experiencia en ${project.industry}`)
+    }
+  }
+
+  // Service area match (0–20)
+  if (project.service_area && consultant.kimble_service_areas?.length) {
+    if (consultant.kimble_service_areas.includes(project.service_area)) {
+      score += 20
+      reasons.push(`Área: ${project.service_area}`)
+    } else {
+      reasons.push(`Área distinta (${project.service_area})`)
+    }
+  }
+
   // Availability (0–25)
   if (consultant.available_from) {
     const availDate = new Date(consultant.available_from)
@@ -200,16 +219,16 @@ export function scoreConsultantForPosition(
     const diffDays = Math.floor((startDate.getTime() - availDate.getTime()) / 86400000)
     if (diffDays >= 0) {
       score += 25
-      reasons.push(`Available from ${formatDate(consultant.available_from)}`)
+      reasons.push(`Disponible desde ${formatDate(consultant.available_from)}`)
     } else if (diffDays > -30) {
       score += 10
-      reasons.push(`Available ${formatDate(consultant.available_from)} (slightly late)`)
+      reasons.push(`Disponible ${formatDate(consultant.available_from)} (leve retraso)`)
     } else {
-      reasons.push(`Not available until ${formatDate(consultant.available_from)}`)
+      reasons.push(`No disponible hasta ${formatDate(consultant.available_from)}`)
     }
   } else {
     score += 25
-    reasons.push('Available now')
+    reasons.push('Disponible ahora')
   }
 
   // Seniority match (0–20) — partial credit for adjacent levels
@@ -219,18 +238,18 @@ export function scoreConsultantForPosition(
   let isStretch = false
   if (diff === 0) {
     score += 20
-    reasons.push(`Seniority match: ${consultant.seniority}`)
+    reasons.push(`Seniority: ${consultant.seniority}`)
   } else if (diff === 1) {
     score += 10
     isStretch = true
-    reasons.push(`Near seniority: ${consultant.seniority} (role needs ${position.seniority})`)
+    reasons.push(`Seniority cercano: ${consultant.seniority} (se necesita ${position.seniority})`)
   } else if (diff === 2) {
     score += 5
     isStretch = true
-    reasons.push(`Best available — seniority gap: ${consultant.seniority} vs. ${position.seniority} needed`)
+    reasons.push(`Mejor disponible — brecha: ${consultant.seniority} vs. ${position.seniority}`)
   } else {
     isStretch = true
-    reasons.push(`Stretch — seniority gap: ${consultant.seniority} vs. ${position.seniority} needed`)
+    reasons.push(`Stretch — ${consultant.seniority} vs. ${position.seniority} requerido`)
   }
 
   // Interest signal (+10)
@@ -239,7 +258,7 @@ export function scoreConsultantForPosition(
   )
   if (hasLiked) {
     score += 10
-    reasons.push('Expressed interest in this project')
+    reasons.push('Expresó interés en este proyecto')
   }
 
   // Vacation conflict (−20)
@@ -254,7 +273,7 @@ export function scoreConsultantForPosition(
     const pe = new Date(project.end_date)
     if (vs <= pe && ve >= ps) {
       score -= 20
-      vacationWarning = `Vacation overlap: ${formatDate(vac.start_date)} – ${formatDate(vac.end_date)}`
+      vacationWarning = `Vacaciones: ${formatDate(vac.start_date)} – ${formatDate(vac.end_date)}`
       break
     }
   }
