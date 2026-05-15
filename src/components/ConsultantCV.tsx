@@ -562,7 +562,19 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               )}
             </div>
             <h2 className="text-base font-bold text-center leading-tight">{data.name}</h2>
-            <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
+            {!readOnly ? (
+              <div className="mt-0.5 text-center">
+                <EditableText
+                  value={data.role_title}
+                  placeholder="Cargo / rol..."
+                  onSave={v => update({ role_title: v || data.role_title })}
+                  className="text-xs text-navy-200 italic"
+                  inputClassName="bg-navy-700 text-white border-navy-500 text-xs text-center"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
+            )}
             <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
               {data.seniority}
             </Badge>
