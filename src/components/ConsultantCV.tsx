@@ -608,7 +608,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
             )}
             <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
-              {data.seniority}
+              {SENIORITY_ES[data.seniority] ?? data.seniority}
             </Badge>
             {data.practice_area && (
               <p className="text-xs text-navy-300 mt-1 text-center">{data.practice_area}</p>
