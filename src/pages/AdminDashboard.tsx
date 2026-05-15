@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search, Heart,
-  CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp,
+  CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Upload,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -18,19 +18,22 @@ import {
   mockAssignments,
   mockLikes,
 } from '@/lib/mockData'
-import { matchConsultants, findReplacements } from '@/lib/matching'
+import { matchConsultants, matchConsultantsForPosition, findReplacements } from '@/lib/matching'
 import { MAX_CARGABILITY } from '@/lib/constants'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import PeopleTab from '@/components/PeopleTab'
 import AutoStaffingPlan from '@/components/AutoStaffingPlan'
-import type { Profile, Project, VacationRequest, ProjectAssignment } from '@/lib/types'
+import KimbleImportModal from '@/components/KimbleImportModal'
+import type { KimbleImportResult } from '@/lib/kimbleParser'
+import type { Profile, Project, VacationRequest, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function projectStatusVariant(status: string): 'open' | 'partial' | 'full' | 'active' {
+function projectStatusVariant(status: string): 'open' | 'partial' | 'full' | 'active' | 'ended' {
   if (status === 'Open') return 'open'
   if (status === 'Partially Staffed') return 'partial'
   if (status === 'Fully Staffed') return 'full'
+  if (status === 'Ended') return 'ended'
   return 'active'
 }
 
@@ -61,7 +64,10 @@ function ProjectCard({
   selected: boolean
   onClick: () => void
 }) {
-  const derivedStatus = project.status === 'Active'
+  const isEnded = new Date(project.end_date) < new Date(new Date().toDateString())
+  const derivedStatus = isEnded
+    ? 'Ended'
+    : project.status === 'Active'
     ? 'Active'
     : assigned === 0
     ? 'Open'
@@ -84,7 +90,9 @@ function ProjectCard({
       </div>
       <p className="mt-0.5 text-xs text-slate-500">{project.client}</p>
       <p className="mt-1 text-xs text-slate-400">
-        {derivedStatus === 'Active'
+        {derivedStatus === 'Ended'
+          ? `Ended ${formatDate(project.end_date)} · ${assigned} staffed`
+          : derivedStatus === 'Active'
           ? `${assigned} staffed · Ends ${formatDate(project.end_date)}`
           : `${assigned}/${project.team_size} staffed · Starts ${formatDate(project.start_date)}`}
       </p>
@@ -220,20 +228,99 @@ function AssignedMemberRow({
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const [consultants, setConsultants] = useState<Profile[]>(mockConsultants)
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
   const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
+  const [kimbleModalOpen, setKimbleModalOpen] = useState(false)
+  const [lastImport, setLastImport] = useState<string | null>(null)
+  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
+  function handleKimbleImport(result: KimbleImportResult) {
+    // Accent-insensitive name normalization
+    const normName = (s: string) =>
+      s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+    // 1. Upsert projects — replace by kimble_code, keep manual ones
+    setProjects((prev) => {
+      const kimbleIds = new Set(result.projects.map((p) => p.id))
+      const kept = prev.filter((p) => {
+        const code = (p as any).kimble_code as string | undefined
+        return !code || !kimbleIds.has(code)
+      })
+      return [...kept, ...result.projects]
+    })
+
+    // 2. Build project assignments from raw Kimble rows, resolving name → id
+    const normToId: Record<string, string> = {}
+    consultants.forEach((c) => { normToId[normName(c.name)] = c.id })
+
+    const newAssignments: ProjectAssignment[] = result.rawAssignments
+      .flatMap((ra, i) => {
+        const consultantId = normToId[normName(ra.consultantName)]
+        if (!consultantId) return []
+        const a: ProjectAssignment = {
+          id: `kimble-${ra.projectId}-${i}`,
+          project_id: ra.projectId,
+          consultant_id: consultantId,
+          dedication_percentage: ra.projectDedPct,
+          end_date: ra.endDate,
+          assigned_at: result.importedAt,
+        }
+        return [a]
+      })
+
+    setAssignments((prev) => {
+      const manual = prev.filter((a) => !a.id.startsWith('kimble-'))
+      return [...manual, ...newAssignments]
+    })
+
+    // 3. Update annual_dedication_pct + merge industry/area data on matching profiles
+    setConsultants((prev) =>
+      prev.map((c) => {
+        const normC = normName(c.name)
+
+        // Dedication %
+        const kimbleName = Object.keys(result.consultantDedications).find(
+          (k) => normName(k) === normC,
+        )
+        const pct = kimbleName !== undefined ? result.consultantDedications[kimbleName] : undefined
+
+        // Area data — additive merge, no duplicates
+        const areaKey = Object.keys(result.consultantAreaData).find((k) => normName(k) === normC)
+        const newAreas = areaKey ? result.consultantAreaData[areaKey] : null
+
+        if (pct === undefined && !newAreas) return c
+
+        return {
+          ...c,
+          ...(pct !== undefined ? { annual_dedication_pct: pct } : {}),
+          ...(newAreas ? {
+            industry_experience: [
+              ...new Set([...(c.industry_experience ?? []), ...newAreas.industries]),
+            ],
+            kimble_service_areas: [
+              ...new Set([...(c.kimble_service_areas ?? []), ...newAreas.areas]),
+            ],
+          } : {}),
+        }
+      }),
+    )
+
+    setLastImport(result.fileName)
+  }
+
+  const endedProjects = projects.filter((p) => new Date(p.end_date) < today)
   const visibleProjects = projects.filter((p) => new Date(p.end_date) >= today)
   const upcomingProjects = visibleProjects.filter((p) => p.status !== 'Active')
   const activeProjects = visibleProjects.filter((p) => p.status === 'Active')
 
-  const filteredConsultants = mockConsultants.filter(
+  const filteredConsultants = consultants.filter(
     (c) =>
       c.is_active &&
       (c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -244,9 +331,15 @@ export default function AdminDashboard() {
 
   const isActiveProject = selectedProject?.status === 'Active'
 
-  const matchResults =
-    selectedProject && !isActiveProject
-      ? matchConsultants(selectedProject, mockConsultants, mockLikes, vacations, assignments)
+  // Per-position suggestions using the same scorer as Staffing Plan
+  const positionSuggestions =
+    selectedProject && !isActiveProject && selectedProject.positions?.length
+      ? selectedProject.positions.map((pos) => ({
+          position: pos,
+          results: matchConsultantsForPosition(pos, selectedProject, consultants, mockLikes, vacations, assignments),
+        }))
+      : selectedProject && !isActiveProject
+      ? [{ position: null, results: matchConsultants(selectedProject, consultants, mockLikes, vacations, assignments) }]
       : []
 
   const assignedToSelected = assignments.filter((a) => a.project_id === selectedProject?.id)
@@ -254,7 +347,7 @@ export default function AdminDashboard() {
 
   const assignedConsultants = assignedIds
     .map((id) => ({
-      consultant: mockConsultants.find((c) => c.id === id)!,
+      consultant: consultants.find((c) => c.id === id)!,
       assignment: assignedToSelected.find((a) => a.consultant_id === id)!,
     }))
     .filter((x) => x.consultant)
@@ -274,6 +367,24 @@ export default function AdminDashboard() {
     ])
   }
 
+  function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string) {
+    setBeachAssignments((prev) => [
+      ...prev,
+      {
+        id: `beach-${Date.now()}`,
+        consultant_id: consultantId,
+        task_type: taskType,
+        description,
+        end_date: endDate,
+        assigned_at: new Date().toISOString(),
+      },
+    ])
+  }
+
+  function handleRemoveBeach(id: string) {
+    setBeachAssignments((prev) => prev.filter((b) => b.id !== id))
+  }
+
   function handleVacation(id: string, status: 'Approved' | 'Rejected') {
     setVacations((prev) =>
       prev.map((v) => (v.id === id ? { ...v, status, reviewed_at: new Date().toISOString() } : v)),
@@ -286,9 +397,32 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
-        <p className="text-sm text-slate-500">Manage your consulting team and projects</p>
+      <KimbleImportModal
+        open={kimbleModalOpen}
+        onClose={() => setKimbleModalOpen(false)}
+        consultants={consultants}
+        onConfirm={handleKimbleImport}
+      />
+
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
+          <p className="text-sm text-slate-500">
+            Manage your consulting team and projects
+            {lastImport && (
+              <span className="ml-2 text-xs text-green-600">· Kimble data imported: {lastImport}</span>
+            )}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1.5 border-slate-200 text-slate-600 hover:border-navy-800 hover:text-navy-800"
+          onClick={() => setKimbleModalOpen(true)}
+        >
+          <Upload size={14} />
+          Import Kimble
+        </Button>
       </div>
 
       <Tabs defaultValue="projects">
@@ -337,6 +471,25 @@ export default function AdminDashboard() {
                   </p>
                   <div className="space-y-2">
                     {activeProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        assigned={assignments.filter((a) => a.project_id === project.id).length}
+                        selected={selectedProject?.id === project.id}
+                        onClick={() => { setSelectedProject(project); setReplacementsFor(null) }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {endedProjects.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-300">
+                    Ended
+                  </p>
+                  <div className="space-y-2">
+                    {endedProjects.map((project) => (
                       <ProjectCard
                         key={project.id}
                         project={project}
@@ -421,59 +574,85 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   ) : (
-                    /* ── Upcoming project: match suggestions ── */
-                    <div>
-                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-                        AI Match Suggestions
-                      </p>
-                      {matchResults.length === 0 ? (
-                        <p className="text-sm text-slate-400">No consultants scored above 0.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {matchResults.map((result) => {
-                            const alreadyAssigned = assignedIds.includes(result.consultant.id)
-                            return (
-                              <div
-                                key={result.consultant.id}
-                                className="flex items-start gap-3 rounded-md border border-slate-100 p-3"
-                              >
-                                <Avatar className="h-9 w-9 shrink-0">
-                                  <AvatarFallback className="text-xs">
-                                    {getInitials(result.consultant.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-navy-800">{result.consultant.name}</p>
-                                    {result.hasLiked && (
-                                      <Heart size={13} className="fill-bip-red text-bip-red" />
-                                    )}
+                    /* ── Upcoming project: per-position suggestions ── */
+                    <div className="space-y-5">
+                      {positionSuggestions.map(({ position, results }, pi) => (
+                        <div key={position?.id ?? 'general'}>
+                          {/* Position header */}
+                          {position && (
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className="text-sm font-medium text-blue-800">{position.role}</span>
+                              <Badge variant="open" className="text-xs">{position.seniority}</Badge>
+                            </div>
+                          )}
+                          {!position && (
+                            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                              AI Match Suggestions
+                            </p>
+                          )}
+
+                          {/* Suggestions for this position */}
+                          {results.length === 0 ? (
+                            <p className="text-sm text-slate-400">No hay candidatos disponibles.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {results.map((result) => {
+                                const alreadyAssigned = assignedIds.includes(result.consultant.id)
+                                const activeBeach = beachAssignments.filter(
+                                  (b) => b.consultant_id === result.consultant.id && new Date(b.end_date) >= today,
+                                )
+                                return (
+                                  <div
+                                    key={result.consultant.id}
+                                    className="flex items-start gap-3 rounded-md border border-slate-100 p-3"
+                                  >
+                                    <Avatar className="h-9 w-9 shrink-0">
+                                      <AvatarFallback className="text-xs">
+                                        {getInitials(result.consultant.name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-navy-800">{result.consultant.name}</p>
+                                        {result.hasLiked && <Heart size={13} className="fill-bip-red text-bip-red" />}
+                                        {result.isStretch && (
+                                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                                            Best available
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-slate-500">{result.reason}</p>
+                                      {result.vacationWarning && (
+                                        <p className="mt-0.5 text-xs text-amber-600">⚠ {result.vacationWarning}</p>
+                                      )}
+                                      {activeBeach.length > 0 && (
+                                        <p className="mt-0.5 text-xs text-amber-600">
+                                          ⚠ En playa: {activeBeach.map((b) => `${b.task_type} — ${b.description}`).join('; ')}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex shrink-0 flex-col items-end gap-2">
+                                      <span className="text-sm font-bold text-navy-800">{result.score}</span>
+                                      {alreadyAssigned ? (
+                                        <Badge variant="success" className="text-xs">Assigned</Badge>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-xs h-7"
+                                          onClick={() => handleAssign(result.consultant.id, selectedProject.id)}
+                                        >
+                                          Assign
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-slate-500">{result.reason}</p>
-                                  {result.vacationWarning && (
-                                    <p className="mt-0.5 text-xs text-amber-600">⚠ {result.vacationWarning}</p>
-                                  )}
-                                </div>
-                                <div className="flex shrink-0 flex-col items-end gap-2">
-                                  <span className="text-sm font-bold text-navy-800">{result.score}</span>
-                                  {alreadyAssigned ? (
-                                    <Badge variant="success" className="text-xs">Assigned</Badge>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-7"
-                                      onClick={() => handleAssign(result.consultant.id, selectedProject.id)}
-                                    >
-                                      Assign
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -520,7 +699,14 @@ export default function AdminDashboard() {
 
         {/* People tab */}
         <TabsContent value="people">
-          <PeopleTab assignments={assignments} />
+          <PeopleTab
+            consultants={consultants}
+            projects={projects}
+            assignments={assignments}
+            beachAssignments={beachAssignments}
+            onAssignBeach={handleAssignBeach}
+            onRemoveBeach={handleRemoveBeach}
+          />
         </TabsContent>
 
         {/* Time Off tab */}
@@ -626,10 +812,11 @@ export default function AdminDashboard() {
         <TabsContent value="staffing">
           <AutoStaffingPlan
             projects={visibleProjects}
-            consultants={mockConsultants}
+            consultants={consultants}
             assignments={assignments}
             vacations={vacations}
             likes={mockLikes}
+            beachAssignments={beachAssignments}
             onApply={(newAssignments) =>
               setAssignments((prev) => [...prev, ...newAssignments])
             }

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, Bell, LayoutDashboard } from 'lucide-react'
+import { LogOut, Bell } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getInitials } from '@/lib/utils'
 
@@ -28,14 +28,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-4">
-            <Link
-              to={dashboardPath}
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-slate-200 transition hover:bg-navy-700 hover:text-white"
-            >
-              <LayoutDashboard size={15} />
-              Dashboard
-            </Link>
-
             <button className="relative rounded-md p-1.5 text-slate-200 transition hover:bg-navy-700 hover:text-white">
               <Bell size={18} />
             </button>

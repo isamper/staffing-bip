@@ -18,6 +18,7 @@ const badgeVariants = cva(
         partial: 'bg-amber-100 text-amber-800',
         full: 'bg-green-100 text-green-800',
         active: 'bg-slate-100 text-slate-700',
+        ended: 'bg-slate-100 text-slate-400',
       },
     },
     defaultVariants: { variant: 'default' },

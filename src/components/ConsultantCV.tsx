@@ -666,6 +666,32 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             )}
           </Section>
 
+          {/* Industry & service area experience from Kimble historic */}
+          {(data.industry_experience?.length || data.kimble_service_areas?.length) && (
+            <Section icon={<Briefcase size={13} />} title="Experiencia por Industria y Área (Kimble)">
+              {data.industry_experience?.length ? (
+                <div className="mb-2">
+                  <p className="text-xs text-slate-400 mb-1">Industrias</p>
+                  <div className="flex flex-wrap gap-1">
+                    {data.industry_experience.map(ind => (
+                      <span key={ind} className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs text-blue-700">{ind}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {data.kimble_service_areas?.length ? (
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Áreas de Servicio</p>
+                  <div className="flex flex-wrap gap-1">
+                    {data.kimble_service_areas.map(area => (
+                      <span key={area} className="rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs text-bip-red">{area}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </Section>
+          )}
+
           {/* Skills */}
           <Section icon={<Wrench size={13} />} title="Competencias">
             {!readOnly ? (

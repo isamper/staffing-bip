@@ -13,6 +13,7 @@ import type {
   VacationRequest,
   ProjectLike,
   MatchResult,
+  BeachAssignment,
 } from '@/lib/types'
 
 interface PositionSuggestion {
@@ -31,6 +32,7 @@ interface AutoStaffingPlanProps {
   assignments: ProjectAssignment[]
   vacations: VacationRequest[]
   likes: ProjectLike[]
+  beachAssignments: BeachAssignment[]
   onApply: (newAssignments: ProjectAssignment[]) => void
 }
 
@@ -40,6 +42,7 @@ export default function AutoStaffingPlan({
   assignments,
   vacations,
   likes,
+  beachAssignments,
   onApply,
 }: AutoStaffingPlanProps) {
   const [horizon, setHorizon] = useState<30 | 60 | 90>(30)
@@ -339,6 +342,18 @@ export default function AutoStaffingPlan({
                                     <AlertTriangle size={10} /> {result.vacationWarning}
                                   </p>
                                 )}
+                                {(() => {
+                                  const today = new Date()
+                                  const activeBeach = beachAssignments.filter(
+                                    (b) => b.consultant_id === result.consultant.id && new Date(b.end_date) >= today,
+                                  )
+                                  return activeBeach.length > 0 ? (
+                                    <p className="flex items-center gap-1 text-xs text-amber-600">
+                                      <AlertTriangle size={10} />
+                                      En playa: {activeBeach.map((b) => `${b.task_type} — ${b.description}`).join('; ')}
+                                    </p>
+                                  ) : null
+                                })()}
                               </div>
                               <div className="flex shrink-0 items-center gap-2">
                                 <span className="text-sm font-bold text-navy-800">{result.score}</span>

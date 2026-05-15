@@ -34,6 +34,10 @@ export interface Profile {
   years_of_experience: number | null
   certifications: string[]
   experience: ExperienceEntry[]
+  // Kimble-derived fields (set on import)
+  annual_dedication_pct?: number   // sum of Kimble usage days / 243 Colombian work days × 100
+  industry_experience?: string[]   // from historic Kimble data
+  kimble_service_areas?: string[]  // from historic Kimble data
 }
 
 export interface ExperienceEntry {
@@ -64,6 +68,9 @@ export interface Project {
   skills_required: string[]
   positions?: Position[]
   created_at: string
+  // Kimble-derived fields
+  kimble_code?: string    // e.g. "e000720"
+  service_area?: string   // Kimble service area (e.g. "Strategy & Innovation")
 }
 
 export interface VacationRequest {
@@ -86,6 +93,17 @@ export interface ProjectAssignment {
   end_date: string | null
   assigned_at: string
   assigned_by?: string
+}
+
+export type BeachTaskType = 'Propuesta' | 'Actividad Interna' | 'Apoyo a Proyecto' | 'Otro'
+
+export interface BeachAssignment {
+  id: string
+  consultant_id: string
+  task_type: BeachTaskType
+  description: string
+  end_date: string
+  assigned_at: string
 }
 
 export interface ProjectLike {

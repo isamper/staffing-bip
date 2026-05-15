@@ -1,14 +1,17 @@
 import { useState } from 'react'
-import { Search, AlertTriangle, Clock, ChevronRight } from 'lucide-react'
-import { mockConsultants, mockProjects } from '@/lib/mockData'
+import { Search, AlertTriangle, Clock, ChevronRight, Info, Umbrella, X } from 'lucide-react'
 import { MAX_CARGABILITY } from '@/lib/constants'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import ConsultantCV from '@/components/ConsultantCV'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
-import type { Profile, ProjectAssignment } from '@/lib/types'
+import type { Profile, Project, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
 
-type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated'
+type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated' | 'beach'
+
+const BEACH_TASK_TYPES: BeachTaskType[] = ['Propuesta', 'Actividad Interna', 'Apoyo a Proyecto', 'Otro']
 
 interface ProjectInfo {
   name: string
@@ -25,6 +28,8 @@ interface ConsultantStats {
   isAvailable: boolean
   isRollingOff: boolean
   isOnProject: boolean
+  isOnBeach: boolean
+  activeBeachTasks: BeachAssignment[]
   projectsInfo: ProjectInfo[]
 }
 
@@ -157,6 +162,14 @@ function ConsultantRow({ stats, onClick }: { stats: ConsultantStats; onClick: ()
         {totalDedication > 0 && (
           <DedicationBar value={totalDedication} max={maxDedication} />
         )}
+        {consultant.annual_dedication_pct !== undefined && (
+          <p className="text-xs text-slate-400">
+            Anual Kimble:{' '}
+            <span className={`font-semibold ${consultant.annual_dedication_pct > 80 ? 'text-bip-red' : 'text-navy-700'}`}>
+              {consultant.annual_dedication_pct}%
+            </span>
+          </p>
+        )}
         <p className="text-xs text-slate-400">
           {isAvailableNow(consultant.available_from)
             ? 'Available now'
@@ -173,23 +186,36 @@ function ConsultantRow({ stats, onClick }: { stats: ConsultantStats; onClick: ()
 // ─── main component ───────────────────────────────────────────────────────────
 
 interface PeopleTabProps {
+  consultants: Profile[]
+  projects: Project[]
   assignments: ProjectAssignment[]
+  beachAssignments: BeachAssignment[]
+  onAssignBeach: (consultantId: string, taskType: BeachTaskType, description: string, endDate: string) => void
+  onRemoveBeach: (id: string) => void
 }
 
-export default function PeopleTab({ assignments }: PeopleTabProps) {
+export default function PeopleTab({
+  consultants, projects, assignments, beachAssignments, onAssignBeach, onRemoveBeach,
+}: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [beachTarget, setBeachTarget] = useState<Profile | null>(null)
+  const [beachForm, setBeachForm] = useState<{ taskType: BeachTaskType; description: string; endDate: string }>({
+    taskType: 'Propuesta',
+    description: '',
+    endDate: '',
+  })
 
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
-  const stats: ConsultantStats[] = mockConsultants
+  const stats: ConsultantStats[] = consultants
     .filter((c) => c.is_active)
     .map((c) => {
       const activeAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
-        const proj = mockProjects.find((p) => p.id === a.project_id)
+        const proj = projects.find((p) => p.id === a.project_id)
         return proj ? new Date(proj.end_date) >= today : false
       })
 
@@ -198,7 +224,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
 
       const projectsInfo: ProjectInfo[] = activeAssignments
         .map((a) => {
-          const proj = mockProjects.find((p) => p.id === a.project_id)
+          const proj = projects.find((p) => p.id === a.project_id)
           return proj
             ? { name: proj.name, dedication: a.dedication_percentage, endDate: a.end_date ?? proj.end_date, assignedAt: a.assigned_at }
             : null
@@ -206,11 +232,15 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
         .filter((x): x is ProjectInfo => x !== null)
 
       const isRollingOff = activeAssignments.some((a) => {
-        const proj = mockProjects.find((p) => p.id === a.project_id)
+        const proj = projects.find((p) => p.id === a.project_id)
         if (!proj) return false
         const end = new Date(a.end_date ?? proj.end_date)
         return end >= today && end <= in30
       })
+
+      const activeBeachTasks = beachAssignments.filter(
+        (b) => b.consultant_id === c.id && new Date(b.end_date) >= today,
+      )
 
       return {
         consultant: c,
@@ -220,13 +250,15 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
         isAvailable: totalDedication === 0 && isAvailableNow(c.available_from),
         isRollingOff,
         isOnProject: totalDedication > 0,
+        isOnBeach: totalDedication === 0,
+        activeBeachTasks,
         projectsInfo,
       }
     })
-    // Sort: over-dedicated first, then rolling off, then on project, then available
+    // Sort: over-dedicated first, then rolling off, then on project, then beach, then available
     .sort((a, b) => {
-      const rank = (s: ConsultantStats) =>
-        s.isOverDedicated ? 0 : s.isRollingOff ? 1 : s.isOnProject ? 2 : 3
+      const rank = (s: typeof a) =>
+        s.isOverDedicated ? 0 : s.isRollingOff ? 1 : s.isOnProject ? 2 : s.activeBeachTasks.length > 0 ? 3 : 4
       return rank(a) - rank(b)
     })
 
@@ -236,6 +268,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
     on_project: stats.filter((s) => s.isOnProject).length,
     rolling_off: stats.filter((s) => s.isRollingOff).length,
     over_dedicated: stats.filter((s) => s.isOverDedicated).length,
+    beach: stats.filter((s) => s.isOnBeach).length,
   }
 
   const filtered = stats
@@ -244,6 +277,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
       if (filter === 'on_project') return s.isOnProject
       if (filter === 'rolling_off') return s.isRollingOff
       if (filter === 'over_dedicated') return s.isOverDedicated
+      if (filter === 'beach') return s.isOnBeach
       return true
     })
     .filter((s) => {
@@ -258,11 +292,75 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
     })
 
   const selectedConsultant = selectedId
-    ? mockConsultants.find(c => c.id === selectedId) ?? null
+    ? consultants.find(c => c.id === selectedId) ?? null
     : null
+
+  function openBeachModal(consultant: Profile) {
+    setBeachTarget(consultant)
+    setBeachForm({ taskType: 'Propuesta', description: '', endDate: '' })
+  }
+
+  function submitBeachAssignment() {
+    if (!beachTarget || !beachForm.description.trim() || !beachForm.endDate) return
+    onAssignBeach(beachTarget.id, beachForm.taskType, beachForm.description.trim(), beachForm.endDate)
+    setBeachTarget(null)
+  }
 
   return (
     <div>
+      {/* Beach task assignment modal */}
+      <Dialog open={!!beachTarget} onOpenChange={(v) => !v && setBeachTarget(null)}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+            <Umbrella size={16} className="text-amber-500" />
+            <h2 className="font-semibold text-navy-800 text-sm">Asignar Tarea — {beachTarget?.name}</h2>
+          </div>
+          <div className="px-5 py-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Tipo de tarea</label>
+              <select
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                value={beachForm.taskType}
+                onChange={(e) => setBeachForm((f) => ({ ...f, taskType: e.target.value as BeachTaskType }))}
+              >
+                {BEACH_TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Descripción</label>
+              <input
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                placeholder="Ej: Propuesta Bancolombia — modelación financiera"
+                value={beachForm.description}
+                onChange={(e) => setBeachForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Fecha fin</label>
+              <input
+                type="date"
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                value={beachForm.endDate}
+                onChange={(e) => setBeachForm((f) => ({ ...f, endDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3 bg-slate-50">
+            <Button variant="outline" size="sm" onClick={() => setBeachTarget(null)}>Cancelar</Button>
+            <Button
+              size="sm"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              disabled={!beachForm.description.trim() || !beachForm.endDate}
+              onClick={submitBeachAssignment}
+            >
+              Asignar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* CV slide-in panel */}
       {selectedConsultant && (
         <div className="mb-5">
@@ -275,7 +373,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
           <ConsultantCV
             profile={selectedConsultant}
             assignments={assignments}
-            projects={mockProjects}
+            projects={projects}
             readOnly
           />
         </div>
@@ -289,6 +387,7 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
           <FilterChip label="On Project" count={counts.on_project} active={filter === 'on_project'} color="blue" onClick={() => setFilter('on_project')} />
           <FilterChip label="Rolling Off (30d)" count={counts.rolling_off} active={filter === 'rolling_off'} color="amber" onClick={() => setFilter('rolling_off')} />
           <FilterChip label="Over-dedicated" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => setFilter('over_dedicated')} />
+          <FilterChip label="Playa" count={counts.beach} active={filter === 'beach'} color="amber" onClick={() => setFilter('beach')} />
         </div>
 
         {/* Search */}
@@ -307,10 +406,59 @@ export default function PeopleTab({ assignments }: PeopleTabProps) {
           )}
         </div>
 
+        {/* Hint */}
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-slate-400">
+          <Info size={12} className="shrink-0" />
+          <span>Haz click en el nombre para ver y descargar hoja de vida completa.</span>
+        </div>
+
         {/* List */}
         <div className="space-y-2">
           {filtered.map((s) => (
-            <ConsultantRow key={s.consultant.id} stats={s} onClick={() => setSelectedId(s.consultant.id)} />
+            <div key={s.consultant.id}>
+              <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} />
+              {/* Beach tasks row */}
+              {s.activeBeachTasks.length > 0 && (
+                <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
+                  {s.activeBeachTasks.map((b) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+                    >
+                      <Umbrella size={10} />
+                      <span className="font-medium">{b.task_type}</span>
+                      <span className="text-amber-500">— {b.description}</span>
+                      <span className="text-amber-400">· {formatDate(b.end_date)}</span>
+                      <button
+                        onClick={() => onRemoveBeach(b.id)}
+                        className="ml-0.5 text-amber-400 hover:text-amber-600 transition-colors"
+                        title="Eliminar tarea"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    onClick={() => openBeachModal(s.consultant)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-amber-300 px-2 py-0.5 text-xs text-amber-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
+                  >
+                    + Agregar tarea
+                  </button>
+                </div>
+              )}
+              {/* No beach tasks but on beach → show assign button subtly */}
+              {s.isOnBeach && s.activeBeachTasks.length === 0 && (
+                <div className="ml-12 -mt-1 mb-1 px-3">
+                  <button
+                    onClick={() => openBeachModal(s.consultant)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-200 px-2 py-0.5 text-xs text-slate-400 hover:border-amber-300 hover:text-amber-500 transition-colors"
+                  >
+                    <Umbrella size={10} />
+                    Asignar tarea de playa
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
           {filtered.length === 0 && (
             <div className="py-12 text-center text-sm text-slate-400">

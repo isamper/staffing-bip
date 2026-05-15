@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Heart, Calendar, Briefcase, Clock, FileText } from 'lucide-react'
+import { Heart, Calendar, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import Layout from '@/components/Layout'
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ConsultantCV from '@/components/ConsultantCV'
 import {
+  mockConsultants,
   mockProjects,
   mockVacationRequests,
   mockAssignments,
@@ -35,7 +36,7 @@ function statusVariant(status: string) {
   return 'pending'
 }
 
-type Tab = 'overview' | 'cv'
+type Tab = 'overview' | 'cv' | 'team'
 
 export default function EmployeeDashboard() {
   const { profile: authProfile } = useAuth()
@@ -43,6 +44,8 @@ export default function EmployeeDashboard() {
   const [tab, setTab] = useState<Tab>('overview')
   const [likes, setLikes] = useState<ProjectLike[]>(mockLikes)
   const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
+  const [teamSearch, setTeamSearch] = useState('')
+  const [selectedColleague, setSelectedColleague] = useState<Profile | null>(null)
 
   const {
     register,
@@ -53,6 +56,19 @@ export default function EmployeeDashboard() {
 
   const profile = myProfile
   if (!profile) return null
+
+  const today = new Date()
+  const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000)
+
+  // Projects ended in the last 90 days → prompt to update CV
+  const recentlyEndedProjects = mockAssignments
+    .filter((a) => a.consultant_id === profile.id)
+    .map((a) => mockProjects.find((p) => p.id === a.project_id))
+    .filter((p): p is NonNullable<typeof p> => {
+      if (!p) return false
+      const end = new Date(p.end_date)
+      return end < today && end >= ninetyDaysAgo
+    })
 
   const myAssignments = mockAssignments.filter((a) => a.consultant_id === profile.id)
   const myProjects = myAssignments
@@ -109,8 +125,58 @@ export default function EmployeeDashboard() {
           >
             <FileText size={14} /> My CV
           </button>
+          <button
+            onClick={() => setTab('team')}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${tab === 'team' ? 'bg-white text-navy-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Users size={14} /> Equipo
+          </button>
         </div>
       </div>
+
+      {/* Colleague CV modal */}
+      {selectedColleague && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-16 overflow-y-auto">
+          <div className="w-full max-w-3xl">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm text-white/80">CV de {selectedColleague.name}</span>
+              <button
+                onClick={() => setSelectedColleague(null)}
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20 transition-colors"
+              >
+                <X size={14} /> Cerrar
+              </button>
+            </div>
+            <ConsultantCV
+              profile={selectedColleague}
+              assignments={mockAssignments}
+              projects={mockProjects}
+              readOnly
+            />
+          </div>
+        </div>
+      )}
+
+      {/* CV-update notification banner */}
+      {tab === 'overview' && recentlyEndedProjects.length > 0 && (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Actualiza tu CV</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Tienes {recentlyEndedProjects.length === 1 ? 'un proyecto que terminó recientemente' : `${recentlyEndedProjects.length} proyectos que terminaron recientemente`}.
+              Recuerda agregar esta experiencia a tu hoja de vida:{' '}
+              <span className="font-medium">{recentlyEndedProjects.map(p => p.name).join(', ')}</span>.
+            </p>
+            <button
+              onClick={() => setTab('cv')}
+              className="mt-1.5 text-xs font-medium text-amber-800 underline underline-offset-2 hover:text-amber-900"
+            >
+              Ir a mi CV →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CV Tab */}
       {tab === 'cv' && (
@@ -136,6 +202,56 @@ export default function EmployeeDashboard() {
             }
           }}
         />
+      )}
+
+      {/* Equipo Tab */}
+      {tab === 'team' && (
+        <div>
+          <div className="mb-4 flex items-center gap-2">
+            <Search size={15} className="text-slate-400 shrink-0" />
+            <Input
+              placeholder="Buscar consultor por nombre o habilidad…"
+              value={teamSearch}
+              onChange={(e) => setTeamSearch(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {mockConsultants
+              .filter((c) =>
+                c.is_active &&
+                (c.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+                  c.skills.some((s) => s.toLowerCase().includes(teamSearch.toLowerCase())))
+              )
+              .map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedColleague(c)}
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-navy-400 hover:shadow-sm"
+                >
+                  <Avatar className="h-11 w-11 shrink-0">
+                    {c.photo_url ? (
+                      <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover rounded-full" />
+                    ) : (
+                      <AvatarFallback className="text-sm">{getInitials(c.name)}</AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-navy-800 truncate">{c.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{c.role_title}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {c.skills.slice(0, 2).map((s) => (
+                        <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 truncate max-w-[110px]">{s}</span>
+                      ))}
+                      {c.skills.length > 2 && (
+                        <span className="text-xs text-slate-400">+{c.skills.length - 2}</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </div>
       )}
 
       {tab === 'overview' && <div className="grid gap-6 lg:grid-cols-3">
