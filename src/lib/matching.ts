@@ -182,14 +182,15 @@ export function scoreConsultantForPosition(
     }
   }
 
-  // Skills overlap (0–30) — only when position has skills defined
-  if (position.skills.length > 0) {
-    const matched = position.skills.filter((s) =>
+  // Skills overlap (0–30) — position skills first, fall back to project skills_required
+  const skillPool = position.skills.length > 0 ? position.skills : project.skills_required
+  if (skillPool.length > 0) {
+    const matched = skillPool.filter((s) =>
       consultant.skills.map((cs) => cs.toLowerCase()).includes(s.toLowerCase()),
     )
-    const skillScore = Math.round((matched.length / position.skills.length) * 30)
+    const skillScore = Math.round((matched.length / skillPool.length) * 30)
     score += skillScore
-    reasons.push(`${matched.length}/${position.skills.length} skills requeridas`)
+    reasons.push(`${matched.length}/${skillPool.length} skills requeridas`)
   }
 
   // Industry match (0–20)

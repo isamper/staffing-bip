@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search, Heart,
-  CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Upload,
+  CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -52,6 +52,54 @@ function getTotalDedication(
 }
 
 // ─── sub-components ──────────────────────────────────────────────────────────
+
+function SkillsEditor({ skills, onChange }: { skills: string[]; onChange: (s: string[]) => void }) {
+  const [input, setInput] = useState('')
+
+  function add() {
+    const val = input.trim()
+    if (!val || skills.map(s => s.toLowerCase()).includes(val.toLowerCase())) return
+    onChange([...skills, val])
+    setInput('')
+  }
+
+  return (
+    <div className="mb-4 border-b border-slate-100 pb-4">
+      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+        Skills Requeridas
+      </p>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {skills.map((s) => (
+          <span key={s} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700">
+            {s}
+            <button onClick={() => onChange(skills.filter(x => x !== s))} className="text-slate-400 hover:text-red-500 transition-colors">
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+        {skills.length === 0 && (
+          <span className="text-xs text-slate-400">Sin skills definidas aún</span>
+        )}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          className="flex-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs outline-none focus:border-navy-400 placeholder:text-slate-400"
+          placeholder="Agregar skill requerida…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button
+          onClick={add}
+          disabled={!input.trim()}
+          className="flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-navy-400 hover:text-navy-800 disabled:opacity-40 transition-colors"
+        >
+          <Plus size={11} /> Agregar
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function ProjectCard({
   project,
@@ -352,6 +400,15 @@ export default function AdminDashboard() {
     }))
     .filter((x) => x.consultant)
 
+  function handleUpdateProjectSkills(projectId: string, skills: string[]) {
+    setProjects((prev) =>
+      prev.map((p) => p.id === projectId ? { ...p, skills_required: skills } : p),
+    )
+    if (selectedProject?.id === projectId) {
+      setSelectedProject((p) => p ? { ...p, skills_required: skills } : p)
+    }
+  }
+
   function handleAssign(consultantId: string, projectId: string) {
     const project = mockProjects.find((p) => p.id === projectId)
     setAssignments((prev) => [
@@ -530,6 +587,12 @@ export default function AdminDashboard() {
                       </Link>
                     </div>
                   </div>
+
+                  {/* ── Required Skills (editable) ── */}
+                  <SkillsEditor
+                    skills={selectedProject.skills_required}
+                    onChange={(skills) => handleUpdateProjectSkills(selectedProject.id, skills)}
+                  />
 
                   {isActiveProject ? (
                     /* ── Active project: team + over-dedication ── */
