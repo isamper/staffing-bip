@@ -5,6 +5,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
+import { SUGGESTED_SKILLS, ALL_SKILLS } from '@/lib/skills'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -54,21 +55,28 @@ function getTotalDedication(
 // ─── sub-components ──────────────────────────────────────────────────────────
 
 function SkillsEditor({ skills, onChange }: { skills: string[]; onChange: (s: string[]) => void }) {
-  const [input, setInput] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
 
-  function add() {
-    const val = input.trim()
-    if (!val || skills.map(s => s.toLowerCase()).includes(val.toLowerCase())) return
+  function add(value: string) {
+    const val = value.trim()
+    if (!val || skills.map(s => s.toLowerCase()).includes(val.toLowerCase())) {
+      setDraft(''); setAdding(false); return
+    }
     onChange([...skills, val])
-    setInput('')
+    setDraft(''); setAdding(false)
   }
+
+  const filtered = ALL_SKILLS.filter(
+    s => !skills.includes(s) && s.toLowerCase().includes(draft.toLowerCase())
+  )
 
   return (
     <div className="mb-4 border-b border-slate-100 pb-4">
       <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
         Skills Requeridas
       </p>
-      <div className="flex flex-wrap gap-1.5 mb-2">
+      <div className="flex flex-wrap gap-1.5 mb-2 items-center">
         {skills.map((s) => (
           <span key={s} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700">
             {s}
@@ -77,25 +85,49 @@ function SkillsEditor({ skills, onChange }: { skills: string[]; onChange: (s: st
             </button>
           </span>
         ))}
-        {skills.length === 0 && (
+        {skills.length === 0 && !adding && (
           <span className="text-xs text-slate-400">Sin skills definidas aún</span>
         )}
-      </div>
-      <div className="flex gap-1.5">
-        <input
-          className="flex-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs outline-none focus:border-navy-400 placeholder:text-slate-400"
-          placeholder="Agregar skill requerida…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <button
-          onClick={add}
-          disabled={!input.trim()}
-          className="flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-navy-400 hover:text-navy-800 disabled:opacity-40 transition-colors"
-        >
-          <Plus size={11} /> Agregar
-        </button>
+        {adding ? (
+          <div className="relative">
+            <span className="inline-flex items-center gap-1">
+              <input
+                className="w-44 rounded-full border border-navy-300 px-2.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-navy-400"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') add(draft)
+                  if (e.key === 'Escape') { setDraft(''); setAdding(false) }
+                }}
+                autoFocus
+                placeholder="Buscar skill…"
+              />
+              <button onClick={() => { setDraft(''); setAdding(false) }} className="text-slate-400 hover:text-slate-600">
+                <X size={12} />
+              </button>
+            </span>
+            {filtered.length > 0 && (
+              <div className="absolute top-full left-0 z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                {filtered.slice(0, 20).map(s => (
+                  <button
+                    key={s}
+                    onMouseDown={(e) => { e.preventDefault(); add(s) }}
+                    className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-navy-50 hover:text-navy-700"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400 hover:border-navy-400 hover:text-navy-600 transition-colors"
+          >
+            <Plus size={10} /> Agregar
+          </button>
+        )}
       </div>
     </div>
   )

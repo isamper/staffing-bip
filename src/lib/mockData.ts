@@ -425,7 +425,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-02-09',
     end_date: '2026-11-30',
     team_size: 21,
-    skills_required: ['Financial Modeling', 'Operations', 'Change Management', 'Project Management'],
+    skills_required: ['Modelamiento Financiero', 'Excelencia Operativa', 'Gestión del Cambio', 'Gestión de Proyectos'],
     kimble_code: 'e000711',
     created_at: '2026-02-01T00:00:00Z',
   },
@@ -439,7 +439,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-02-12',
     end_date: '2026-12-31',
     team_size: 12,
-    skills_required: ['Strategy', 'Change Management', 'Project Management', 'Business Analysis', 'Stakeholder Management'],
+    skills_required: ['Estrategia Corporativa', 'Gestión del Cambio', 'Gestión de Proyectos', 'Análisis de Negocio', 'Gestión de Stakeholders'],
     kimble_code: 'e000713',
     created_at: '2026-02-01T00:00:00Z',
   },
@@ -453,7 +453,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-05',
     end_date: '2026-08-21',
     team_size: 8,
-    skills_required: ['ERP', 'SAP', 'Business Analysis', 'Project Management', 'Data Analytics'],
+    skills_required: ['ERP', 'SAP', 'Análisis de Negocio', 'Gestión de Proyectos', 'Análisis de Datos'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -466,7 +466,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-05',
     end_date: '2026-05-29',
     team_size: 7,
-    skills_required: ['Implementation', 'Business Analysis', 'IT Strategy', 'Project Management'],
+    skills_required: ['PMO', 'Análisis de Negocio', 'Estrategia de TI', 'Gestión de Proyectos'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -479,7 +479,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-02-09',
     end_date: '2026-04-17',
     team_size: 4,
-    skills_required: ['ERP', 'Business Analysis', 'Process Optimization'],
+    skills_required: ['ERP', 'Análisis de Negocio', 'Mejora de Procesos'],
     created_at: '2026-02-01T00:00:00Z',
   },
   {
@@ -492,7 +492,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-05',
     end_date: '2026-04-03',
     team_size: 4,
-    skills_required: ['Cybersecurity', 'IT Strategy', 'Risk Management'],
+    skills_required: ['Ciberseguridad', 'Estrategia de TI', 'Análisis de Negocio'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -505,7 +505,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-02-09',
     end_date: '2026-04-03',
     team_size: 4,
-    skills_required: ['Strategy', 'Business Analysis', 'Financial Modeling'],
+    skills_required: ['Estrategia Corporativa', 'Análisis de Negocio', 'Modelamiento Financiero'],
     created_at: '2026-02-01T00:00:00Z',
   },
   {
@@ -518,7 +518,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-02-17',
     end_date: '2026-03-17',
     team_size: 3,
-    skills_required: ['ERP', 'Business Analysis', 'Change Management'],
+    skills_required: ['ERP', 'Análisis de Negocio', 'Gestión del Cambio'],
     created_at: '2026-02-01T00:00:00Z',
   },
   {
@@ -531,7 +531,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-02',
     end_date: '2026-03-18',
     team_size: 3,
-    skills_required: ['Data Analytics', 'Strategy', 'Business Intelligence'],
+    skills_required: ['Análisis de Datos', 'Estrategia Corporativa', 'Business Intelligence'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -544,7 +544,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-13',
     end_date: '2026-01-30',
     team_size: 3,
-    skills_required: ['Cybersecurity', 'IT Strategy', 'Implementation'],
+    skills_required: ['Ciberseguridad', 'Estrategia de TI', 'PMO'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -557,7 +557,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-12',
     end_date: '2026-02-20',
     team_size: 2,
-    skills_required: ['Strategy', 'Organizational Design', 'Business Analysis'],
+    skills_required: ['Estrategia Corporativa', 'Diseño Organizacional', 'Análisis de Negocio'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -570,7 +570,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-05',
     end_date: '2026-02-20',
     team_size: 8,
-    skills_required: ['Implementation', 'Change Management', 'Training'],
+    skills_required: ['Gestión del Cambio', 'Gestión de Proyectos', 'Mejora de Procesos'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -583,7 +583,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-02',
     end_date: '2026-02-06',
     team_size: 18,
-    skills_required: ['IT Strategy', 'Systems Architecture', 'Project Management'],
+    skills_required: ['Estrategia de TI', 'Arquitectura de Sistemas', 'Gestión de Proyectos'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
@@ -596,7 +596,7 @@ export const mockProjects: Project[] = [
     start_date: '2026-01-05',
     end_date: '2026-01-30',
     team_size: 2,
-    skills_required: ['ERP', 'Business Analysis', 'Manufacturing'],
+    skills_required: ['ERP', 'Análisis de Negocio', 'Mejora de Procesos'],
     created_at: '2026-01-01T00:00:00Z',
   },
   {
