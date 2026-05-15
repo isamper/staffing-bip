@@ -594,7 +594,6 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             <h2 className="text-base font-bold text-center leading-tight">{data.name}</h2>
             {!readOnly ? (
               <div className="mt-1 text-center">
-                <p className="mb-0.5 text-xs text-navy-400 uppercase tracking-wider" style={{ fontSize: '9px' }}>Cargo en CV (español)</p>
                 <select
                   value={data.role_title}
                   onChange={e => update({ role_title: e.target.value })}
@@ -608,8 +607,8 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             ) : (
               <p className="text-xs text-navy-200 mt-0.5 text-center italic">{data.role_title}</p>
             )}
-            <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs" title="Nivel Kimble">
-              {SENIORITY_ES[data.seniority] ?? data.seniority}
+            <Badge variant="secondary" className="mt-2 bg-navy-600 text-navy-100 border-navy-500 text-xs">
+              {data.seniority}
             </Badge>
             {data.practice_area && (
               <p className="text-xs text-navy-300 mt-1 text-center">{data.practice_area}</p>
