@@ -99,7 +99,6 @@ export function parseKimbleExcel(
           startDate: string; endDate: string; resourceNames: string[]
         }>()
 
-        const consultantDaysMap = new Map<string, number>()
         const consultantAreaMap = new Map<string, { industries: Set<string>; areas: Set<string> }>()
 
         for (const row of firmRows) {
@@ -111,8 +110,6 @@ export function parseKimbleExcel(
           const usageDays = Number(row[10] ?? 0)
           const industry  = String(row[12] ?? '').trim()
           const serviceArea = String(row[11] ?? '').trim()
-
-          consultantDaysMap.set(resourceName, (consultantDaysMap.get(resourceName) ?? 0) + usageDays)
 
           if (!consultantAreaMap.has(resourceName)) {
             consultantAreaMap.set(resourceName, { industries: new Set(), areas: new Set() })
@@ -233,59 +230,72 @@ export function parseKimbleExcel(
         )
 
         // ── Raw assignments (Firm rows only) ─────────────────────────────
-        // A consultant can appear multiple times for the same project (extensions,
-        // different date ranges). Merge by (projectId, consultantName): sum usage days
-        // and keep the latest individual end date.
+        // A consultant can appear multiple times for the same project (extensions).
+        // Merge by (projectId, consultantName): sum usage days, track the earliest
+        // start and latest end of that consultant's window on this project.
         type MergedKey = string
         const mergedMap = new Map<MergedKey, {
           projectId: string; consultantName: string
-          totalUsageDays: number; latestEndDate: string
+          totalUsageDays: number; earliestStartDate: string; latestEndDate: string
         }>()
 
         for (const row of firmRows) {
-          const engRaw       = String(row[5] ?? '')
-          const code         = extractCode(engRaw)
+          const engRaw         = String(row[5] ?? '')
+          const code           = extractCode(engRaw)
           const consultantName = String(row[3] ?? '').trim()
-          const usageDays    = Number(row[10] ?? 0)
-          const rowEndDate   = parseDMY(String(row[9] ?? ''))
+          const usageDays      = Number(row[10] ?? 0)
+          const rowStartDate   = parseDMY(String(row[6] ?? ''))
+          const rowEndDate     = parseDMY(String(row[9] ?? ''))
 
           const key: MergedKey = `${code}||${consultantName}`
           const existing = mergedMap.get(key)
           if (existing) {
             existing.totalUsageDays += usageDays
-            if (rowEndDate > existing.latestEndDate) existing.latestEndDate = rowEndDate
+            if (rowStartDate < existing.earliestStartDate) existing.earliestStartDate = rowStartDate
+            if (rowEndDate   > existing.latestEndDate)     existing.latestEndDate     = rowEndDate
           } else {
             mergedMap.set(key, {
               projectId: code,
               consultantName,
               totalUsageDays: usageDays,
+              earliestStartDate: rowStartDate,
               latestEndDate: rowEndDate,
             })
           }
         }
 
         const rawAssignments: KimbleRawAssignment[] = [...mergedMap.values()].map((entry) => {
-          const proj = projectMap.get(entry.projectId)!
-
-          const startDate = new Date(proj.startDate + 'T00:00:00')
-          const endDate   = new Date(proj.endDate + 'T00:00:00')
-          const projectWorkDays = countColombianWorkDays(startDate, endDate)
-          const projectDedPct   =
-            projectWorkDays > 0
-              ? Math.min(100, Math.round((entry.totalUsageDays / projectWorkDays) * 100))
+          // Use the consultant's OWN date window (earliest start → latest end),
+          // not the project's full range. This correctly handles consultants who
+          // join late, leave early, or only cover part of a long project.
+          const startDate = new Date(entry.earliestStartDate + 'T00:00:00')
+          const endDate   = new Date(entry.latestEndDate   + 'T00:00:00')
+          const consultantWorkDays = countColombianWorkDays(startDate, endDate)
+          const projectDedPct =
+            consultantWorkDays > 0
+              ? Math.min(100, Math.round((entry.totalUsageDays / consultantWorkDays) * 100))
               : 100
 
           return {
             projectId: entry.projectId,
             consultantName: entry.consultantName,
             usageDays: entry.totalUsageDays,
-            projectWorkDays,
+            projectWorkDays: consultantWorkDays,
             projectDedPct,
             endDate: entry.latestEndDate,
           }
         })
 
         // ── Annual dedication % ──────────────────────────────────────────
+        // Build from the deduplicated mergedMap (not raw rows) so extensions
+        // don't double-count a consultant's days for annual utilisation.
+        const consultantDaysMap = new Map<string, number>()
+        for (const entry of mergedMap.values()) {
+          consultantDaysMap.set(
+            entry.consultantName,
+            (consultantDaysMap.get(entry.consultantName) ?? 0) + entry.totalUsageDays,
+          )
+        }
         const consultantDedications: Record<string, number> = {}
         for (const [name, days] of consultantDaysMap.entries()) {
           consultantDedications[name] = Math.min(100, Math.round((days / COLOMBIAN_WORK_DAYS_2026) * 100))
