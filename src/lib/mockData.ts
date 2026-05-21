@@ -741,11 +741,11 @@ export const mockAssignments: ProjectAssignment[] = [
   { id: 'a65', project_id: 'p703', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Violeta Rodríguez
   { id: 'a66', project_id: 'p703', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Sofia Correa
 
-  // ── Aruba Bank — Interim Security Role Fase 2 (ended Apr 3) ──
-  { id: 'a67', project_id: 'p704', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a68', project_id: 'p704', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a69', project_id: 'p704', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a70', project_id: 'p704', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
+  // ── Aruba Bank — Interim Security Role Fase 2 (ended Apr 3, from Kimble E000704) ──
+  { id: 'a67', project_id: 'p704', consultant_id: 'c2',  dedication_percentage: 20,  end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' }, // John Jairo Romero
+  { id: 'a68', project_id: 'p704', consultant_id: 'c11', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' }, // Alejandro Manrique
+  { id: 'a69', project_id: 'p704', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' }, // Nathalia Quiroga
+  { id: 'a70', project_id: 'p704', consultant_id: 'c48', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' }, // Julián Cardenas
 
   // ── PersonalSoft — Estrategia de Negocio (ended Apr 10, from Kimble) ──
   { id: 'a71', project_id: 'p702', consultant_id: 'c3',  dedication_percentage: 100, end_date: '2026-04-10', assigned_at: '2025-12-01T00:00:00Z' }, // Juan Fernando Forero
@@ -753,34 +753,35 @@ export const mockAssignments: ProjectAssignment[] = [
   { id: 'a73', project_id: 'p702', consultant_id: 'c27', dedication_percentage: 100, end_date: '2026-03-27', assigned_at: '2025-12-01T00:00:00Z' }, // Maria Camila González
   { id: 'a74', project_id: 'p702', consultant_id: 'c49', dedication_percentage: 100, end_date: '2026-04-10', assigned_at: '2025-12-01T00:00:00Z' }, // Emilio Baquerizo
 
-  // ── Autogermana — Consolidación ERP/DMS (ended Mar 17) ──
-  { id: 'a75', project_id: 'p691', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
-  { id: 'a76', project_id: 'p691', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
-  { id: 'a77', project_id: 'p691', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
+  // ── Autogermana — Consolidación ERP/DMS (ended Mar 17, from Kimble E000691) ──
+  { id: 'a75', project_id: 'p691', consultant_id: 'c2',  dedication_percentage: 20,  end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' }, // John Jairo Romero
+  { id: 'a76', project_id: 'p691', consultant_id: 'c18', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' }, // Diego Castro
+  { id: 'a77', project_id: 'p691', consultant_id: 'c52', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' }, // Juana Mejia
+  { id: 'a77b', project_id: 'p691', consultant_id: 'c59', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' }, // Amalia Carbonell
 
-  // ── Grupo AVAL — Delfos (ended Mar 18) ──
-  { id: 'a78', project_id: 'p690', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
-  { id: 'a79', project_id: 'p690', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
-  { id: 'a80', project_id: 'p690', consultant_id: 'c64', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
+  // ── Grupo AVAL — Delfos (ended Mar 18, from Kimble E000690) ──
+  { id: 'a78', project_id: 'p690', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' }, // Juan David Yara
+  { id: 'a79', project_id: 'p690', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' }, // Juan David Alarcón
+  { id: 'a80', project_id: 'p690', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' }, // Lina María Gómez
+  { id: 'a80b', project_id: 'p690', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' }, // Santiago Celis
 
-  // ── Compensar — Implementación Estrategia CIAM (ended Jan 30) ──
-  { id: 'a81', project_id: 'p688', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
-  { id: 'a82', project_id: 'p688', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
-  { id: 'a83', project_id: 'p688', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
+  // ── Compensar — Implementación Estrategia CIAM (ended Jan 30, from Kimble E000688) ──
+  { id: 'a81', project_id: 'p688', consultant_id: 'c2',  dedication_percentage: 20,  end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' }, // John Jairo Romero
+  { id: 'a82', project_id: 'p688', consultant_id: 'c8',  dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' }, // Felipe Estrada
+  { id: 'a83', project_id: 'p688', consultant_id: 'c39', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' }, // Daniel Ángel
 
-  // ── Pacífico Seguros — Revisión del Modelo Comercial (ended Feb 20) ──
-  { id: 'a84', project_id: 'p681', consultant_id: 'c11', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-12T00:00:00Z' },
-  { id: 'a85', project_id: 'p681', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-12T00:00:00Z' },
+  // ── Pacífico Seguros — Revisión del Modelo Comercial (ended Feb 20, from Kimble E000681) ──
+  { id: 'a84', project_id: 'p681', consultant_id: 'c3',  dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-12T00:00:00Z' }, // Juan Fernando Forero
 
-  // ── Corficolombiana — Kronos Acompañamiento (ended Feb 20) ──
-  { id: 'a86', project_id: 'p668', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a87', project_id: 'p668', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a88', project_id: 'p668', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a89', project_id: 'p668', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a90', project_id: 'p668', consultant_id: 'c48', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a91', project_id: 'p668', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a92', project_id: 'p668', consultant_id: 'c64', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a93', project_id: 'p668', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  // ── Corficolombiana — Kronos Acompañamiento (ended Feb 20, from Kimble E000668) ──
+  { id: 'a86', project_id: 'p668', consultant_id: 'c2',  dedication_percentage: 20,  end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // John Jairo Romero
+  { id: 'a87', project_id: 'p668', consultant_id: 'c7',  dedication_percentage: 20,  end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Carla Villaverde
+  { id: 'a88', project_id: 'p668', consultant_id: 'c16', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Andrea Rosales
+  { id: 'a89', project_id: 'p668', consultant_id: 'c17', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Guillermo Ferro
+  { id: 'a90', project_id: 'p668', consultant_id: 'c30', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Nathalia Vélez
+  { id: 'a91', project_id: 'p668', consultant_id: 'c38', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // David Rincón
+  { id: 'a92', project_id: 'p668', consultant_id: 'c50', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Santiago Arevalo
+  { id: 'a93', project_id: 'p668', consultant_id: 'c53', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' }, // Sophie Tobias
 
   // ── Kairos — Estrategia de Integración (ended Feb 6) ──
   { id: 'a94', project_id: 'p604', consultant_id: 'c11', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
@@ -789,9 +790,27 @@ export const mockAssignments: ProjectAssignment[] = [
   { id: 'a97', project_id: 'p604', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
   { id: 'a98', project_id: 'p604', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
 
-  // ── OLCSAL — Gap Analysis ERP (ended Jan 30) ──
-  { id: 'a99',  project_id: 'p594', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' },
-  { id: 'a100', project_id: 'p594', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' },
+  // ── OLCSAL — Gap Analysis ERP (ended Jan 30, from Kimble E000594) ──
+  { id: 'a99',  project_id: 'p594', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' }, // Violeta Rodríguez
+  { id: 'a100', project_id: 'p594', consultant_id: 'c52', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' }, // Juana Mejia
+
+  // ── Active project additions (Kimble corrections) ──
+  // Banco de Bogotá — Proyecto Cóndor (p713)
+  { id: 'a101', project_id: 'p713', consultant_id: 'c3',  dedication_percentage: 20,  end_date: '2026-12-31', assigned_at: '2026-02-12T00:00:00Z' }, // Juan Fernando Forero
+  { id: 'a102', project_id: 'p713', consultant_id: 'c51', dedication_percentage: 100, end_date: '2026-12-31', assigned_at: '2026-02-12T00:00:00Z' }, // Matias Bermudez
+  { id: 'a103', project_id: 'p713', consultant_id: 'c66', dedication_percentage: 100, end_date: '2026-12-31', assigned_at: '2026-02-12T00:00:00Z' }, // Hernan Sanchez
+  { id: 'a104', project_id: 'p713', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-12-31', assigned_at: '2026-02-12T00:00:00Z' }, // Juan Felipe Quintero
+  { id: 'a105', project_id: 'p713', consultant_id: 'c72', dedication_percentage: 100, end_date: '2026-12-31', assigned_at: '2026-02-12T00:00:00Z' }, // Santiago Luengas
+  // Holcim — ERP LATAM (p600)
+  { id: 'a106', project_id: 'p600', consultant_id: 'c2',  dedication_percentage: 10,  end_date: '2026-08-21', assigned_at: '2026-01-05T00:00:00Z' }, // John Jairo Romero
+  { id: 'a107', project_id: 'p600', consultant_id: 'c58', dedication_percentage: 100, end_date: '2026-08-21', assigned_at: '2026-01-05T00:00:00Z' }, // Maria Fernanda Amador
+  // Pacífico Seguros — Implementación Core (p608)
+  { id: 'a108', project_id: 'p608', consultant_id: 'c59', dedication_percentage: 100, end_date: '2026-05-29', assigned_at: '2026-01-05T00:00:00Z' }, // Amalia Carbonell
+  { id: 'a109', project_id: 'p608', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-05-29', assigned_at: '2026-01-05T00:00:00Z' }, // Sofia Correa
+  { id: 'a110', project_id: 'p608', consultant_id: 'c64', dedication_percentage: 100, end_date: '2026-05-29', assigned_at: '2026-01-05T00:00:00Z' }, // Daniel Cortes
+  { id: 'a111', project_id: 'p608', consultant_id: 'c70', dedication_percentage: 100, end_date: '2026-05-29', assigned_at: '2026-01-05T00:00:00Z' }, // Juan Pablo Linares
+  // Politecnico Internacional — Marketing digital (p699)
+  { id: 'a112', project_id: 'p699', consultant_id: 'c47', dedication_percentage: 100, end_date: '2026-06-19', assigned_at: '2026-02-02T00:00:00Z' }, // Juan Currea
 ]
 
 // ── Historic Kimble enrichment ────────────────────────────────────────────────
