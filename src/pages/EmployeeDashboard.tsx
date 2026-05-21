@@ -29,9 +29,48 @@ function loadFromStorage<T>(key: string, fallback: T[]): T[] {
 }
 
 function loadProjects(): Project[] {
+  // The Kimble import stores raw Kimble project IDs (e.g. "e000711"), but
+  // assignments are persisted with the resolved "p711"-style IDs.
+  // To keep lookups consistent we use mockProjects as the canonical ID map
+  // and overlay Kimble data (name / status / dates) on top.
   try {
     const raw = localStorage.getItem('bench_kimble_result_v1')
-    if (raw) return (JSON.parse(raw) as { projects: Project[] }).projects
+    if (!raw) return mockProjects
+    const kimbleProjects: Project[] = (JSON.parse(raw) as { projects: Project[] }).projects
+
+    // Build a numeric-suffix → existing mock project map for ID resolution
+    const numericCode = (id: string) => {
+      const m = id.match(/(\d+)$/)
+      return m ? String(parseInt(m[1], 10)) : id
+    }
+    const mockById = new Map<string, Project>(mockProjects.map((p) => [p.id, p]))
+    const numericToMockId = new Map<string, string>(
+      mockProjects.map((p) => [numericCode(p.id), p.id]),
+    )
+
+    const merged = new Map<string, Project>(mockProjects.map((p) => [p.id, { ...p }]))
+
+    for (const kp of kimbleProjects) {
+      const nc = numericCode(kp.id)
+      const existingId = numericToMockId.get(nc)
+      if (existingId) {
+        // Update existing project in-place, keep the "p711" style ID
+        const existing = mockById.get(existingId)!
+        merged.set(existingId, {
+          ...existing,
+          name: kp.name || existing.name,
+          client: kp.client || existing.client,
+          end_date: kp.end_date,
+          status: kp.status,
+          team_size: kp.team_size,
+        })
+      } else {
+        // Brand new project only in Kimble
+        merged.set(kp.id, kp)
+      }
+    }
+
+    return [...merged.values()]
   } catch { /* ignore */ }
   return mockProjects
 }

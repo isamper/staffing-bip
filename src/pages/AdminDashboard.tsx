@@ -386,13 +386,18 @@ export default function AdminDashboard() {
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
-  // On mount: restore projects + consultant metadata from last Kimble import,
-  // but leave assignments alone (they come from bench_assignments_v1 above).
+  // On mount: restore projects + consultant metadata from last Kimble import.
+  // If bench_assignments_v1 already exists (user has persisted state), skip
+  // re-generating assignments so manual changes survive.  If it doesn't exist
+  // yet (first load after clearing storage), generate assignments from Kimble
+  // so the employee view immediately shows correct data.
   useEffect(() => {
-    // 1. Kimble metadata only (projects + consultant dedications, no assignments)
     try {
       const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
-      if (saved) handleKimbleImport(JSON.parse(saved), { skipAssignments: true })
+      if (saved) {
+        const hasPersistedAssignments = localStorage.getItem(ASSIGNMENTS_STORAGE_KEY) !== null
+        handleKimbleImport(JSON.parse(saved), { skipAssignments: hasPersistedAssignments })
+      }
     } catch {
       localStorage.removeItem(KIMBLE_STORAGE_KEY)
     }
