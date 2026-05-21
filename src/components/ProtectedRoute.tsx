@@ -1,10 +1,20 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import type { UserRole } from '@/lib/types'
+import type { UserRole, Profile } from '@/lib/types'
 
 interface Props {
   children: React.ReactNode
   role?: UserRole
+}
+
+// Seniority levels that get dual admin+consultant access
+const DUAL_VIEW_SENIORITIES = ['Senior Partner', 'Partner', 'Director', 'Senior Manager', 'Manager']
+
+export function canAccessBothViews(profile: Profile): boolean {
+  return (
+    profile.user_role === 'hr_admin' ||
+    DUAL_VIEW_SENIORITIES.includes(profile.seniority)
+  )
 }
 
 export default function ProtectedRoute({ children, role }: Props) {
@@ -19,8 +29,8 @@ export default function ProtectedRoute({ children, role }: Props) {
   }
 
   if (!profile) return <Navigate to="/login" replace />
-  // hr_admin can access both /admin and /employee views
-  if (role && profile.user_role !== role && !(profile.user_role === 'hr_admin')) {
+  // Users with dual-view access can visit both /admin and /employee
+  if (role && profile.user_role !== role && !canAccessBothViews(profile)) {
     return <Navigate to="/employee" replace />
   }
 

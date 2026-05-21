@@ -1,7 +1,8 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { LogOut, Bell, LayoutDashboard, User } from 'lucide-react'
+import { LogOut, LayoutDashboard, User } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getInitials } from '@/lib/utils'
+import { canAccessBothViews } from '@/components/ProtectedRoute'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth()
@@ -13,9 +14,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login')
   }
 
-  const isAdmin = profile?.user_role === 'hr_admin'
+  const dualAccess = profile ? canAccessBothViews(profile) : false
   const isOnAdminView = location.pathname.startsWith('/admin')
-  const dashboardPath = isAdmin ? '/admin' : '/employee'
+  const dashboardPath = profile?.user_role === 'hr_admin' ? '/admin' : '/employee'
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -31,7 +32,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-4">
-            {isAdmin && (
+            {dualAccess && (
               <Link
                 to={isOnAdminView ? '/employee' : '/admin'}
                 className="flex items-center gap-1.5 rounded-md border border-navy-600 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-navy-700 hover:text-white"
@@ -44,9 +45,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 )}
               </Link>
             )}
-            <button className="relative rounded-md p-1.5 text-slate-200 transition hover:bg-navy-700 hover:text-white">
-              <Bell size={18} />
-            </button>
 
             <div className="flex items-center gap-2 border-l border-navy-600 pl-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bip-red text-xs font-semibold text-white">
