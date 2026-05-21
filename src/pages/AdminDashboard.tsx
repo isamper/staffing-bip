@@ -274,13 +274,15 @@ function AssignedMemberRow({
         </button>
       )}
 
-      {/* Desasignar button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onUnassign() }}
-        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-400 hover:border-red-200 hover:text-red-500 transition-colors"
-      >
-        <X size={11} /> Desasignar
-      </button>
+      {/* Desasignar button — only for manually-added assignments, not Kimble imports */}
+      {!assignment.id.startsWith('kimble-') && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onUnassign() }}
+          className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-400 hover:border-red-200 hover:text-red-500 transition-colors"
+        >
+          <X size={11} /> Desasignar
+        </button>
+      )}
 
       {/* Replacement suggestions */}
       {showingReplacements && (
