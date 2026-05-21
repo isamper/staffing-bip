@@ -17,66 +17,103 @@ import {
 } from '@/lib/mockData'
 import { getInitials, formatDate } from '@/lib/utils'
 import type { Profile, Project, ProjectAssignment, ProjectLike } from '@/lib/types'
+import type { KimbleImportResult } from '@/lib/kimbleParser'
+
+// ─── shared helpers ───────────────────────────────────────────────────────────
+const normName = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+const numericCode = (id: string) => {
+  const m = id.match(/(\d+)$/)
+  return m ? String(parseInt(m[1], 10)) : id
+}
+
+// Build numeric-suffix → existing mock project ID map (e.g. "711" → "p711")
+const numericToMockId = new Map<string, string>(
+  mockProjects.map((p) => [numericCode(p.id), p.id]),
+)
+
+// Build normalised name → consultant ID map from mockConsultants
+const normToConsultantId: Record<string, string> = {}
+mockConsultants.forEach((c) => { normToConsultantId[normName(c.name)] = c.id })
 
 // ─── read the same localStorage keys the admin dashboard writes ───────────────
-function loadFromStorage<T>(key: string, fallback: T[]): T[] {
+
+function loadKimbleResult(): KimbleImportResult | null {
   try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T[]) : fallback
-  } catch {
-    return fallback
-  }
+    const raw = localStorage.getItem('bench_kimble_result_v1')
+    return raw ? (JSON.parse(raw) as KimbleImportResult) : null
+  } catch { return null }
+}
+
+/**
+ * Derive assignments from the stored Kimble result using the same logic as
+ * AdminDashboard.handleKimbleImport — this way the employee view is correct
+ * even before the admin dashboard has had a chance to write bench_assignments_v1.
+ */
+function kimbleToAssignments(result: KimbleImportResult): ProjectAssignment[] {
+  return result.rawAssignments.flatMap((ra, i) => {
+    const consultantId = normToConsultantId[normName(ra.consultantName)]
+    if (!consultantId) return []
+    const resolvedProjectId = numericToMockId.get(numericCode(ra.projectId)) ?? ra.projectId
+    const a: ProjectAssignment = {
+      id: `kimble-${ra.projectId}-${i}`,
+      project_id: resolvedProjectId,
+      consultant_id: consultantId,
+      dedication_percentage: ra.projectDedPct,
+      start_date: ra.startDate,
+      end_date: ra.endDate,
+      assigned_at: result.importedAt,
+    }
+    return [a]
+  })
 }
 
 function loadProjects(): Project[] {
-  // The Kimble import stores raw Kimble project IDs (e.g. "e000711"), but
-  // assignments are persisted with the resolved "p711"-style IDs.
-  // To keep lookups consistent we use mockProjects as the canonical ID map
-  // and overlay Kimble data (name / status / dates) on top.
-  try {
-    const raw = localStorage.getItem('bench_kimble_result_v1')
-    if (!raw) return mockProjects
-    const kimbleProjects: Project[] = (JSON.parse(raw) as { projects: Project[] }).projects
+  // The Kimble result stores raw IDs (e.g. "e000711"), but assignments use the
+  // resolved "p711"-style IDs.  We use mockProjects as the canonical ID map and
+  // overlay Kimble data (name / status / dates / positions) on top.
+  const result = loadKimbleResult()
+  if (!result) return mockProjects
 
-    // Build a numeric-suffix → existing mock project map for ID resolution
-    const numericCode = (id: string) => {
-      const m = id.match(/(\d+)$/)
-      return m ? String(parseInt(m[1], 10)) : id
+  const mockById = new Map<string, Project>(mockProjects.map((p) => [p.id, p]))
+  const merged = new Map<string, Project>(mockProjects.map((p) => [p.id, { ...p }]))
+
+  for (const kp of result.projects) {
+    const nc = numericCode(kp.id)
+    const existingId = numericToMockId.get(nc)
+    if (existingId) {
+      const existing = mockById.get(existingId)!
+      merged.set(existingId, {
+        ...existing,
+        name: kp.name || existing.name,
+        client: kp.client || existing.client,
+        end_date: kp.end_date,
+        status: kp.status,
+        team_size: kp.team_size,
+      })
+    } else {
+      merged.set(kp.id, kp)
     }
-    const mockById = new Map<string, Project>(mockProjects.map((p) => [p.id, p]))
-    const numericToMockId = new Map<string, string>(
-      mockProjects.map((p) => [numericCode(p.id), p.id]),
-    )
+  }
 
-    const merged = new Map<string, Project>(mockProjects.map((p) => [p.id, { ...p }]))
-
-    for (const kp of kimbleProjects) {
-      const nc = numericCode(kp.id)
-      const existingId = numericToMockId.get(nc)
-      if (existingId) {
-        // Update existing project in-place, keep the "p711" style ID
-        const existing = mockById.get(existingId)!
-        merged.set(existingId, {
-          ...existing,
-          name: kp.name || existing.name,
-          client: kp.client || existing.client,
-          end_date: kp.end_date,
-          status: kp.status,
-          team_size: kp.team_size,
-        })
-      } else {
-        // Brand new project only in Kimble
-        merged.set(kp.id, kp)
-      }
-    }
-
-    return [...merged.values()]
-  } catch { /* ignore */ }
-  return mockProjects
+  return [...merged.values()]
 }
 
 function loadAssignments(): ProjectAssignment[] {
-  return loadFromStorage<ProjectAssignment>('bench_assignments_v1', mockAssignments)
+  // 1. Prefer fully-persisted state (includes manual assignments from admin)
+  try {
+    const raw = localStorage.getItem('bench_assignments_v1')
+    if (raw) return JSON.parse(raw) as ProjectAssignment[]
+  } catch { /* ignore */ }
+
+  // 2. Fall back: derive directly from the stored Kimble result so the employee
+  //    view works even if the admin dashboard hasn't re-mounted yet this session.
+  const result = loadKimbleResult()
+  if (result) return kimbleToAssignments(result)
+
+  // 3. Last resort: static mock data
+  return mockAssignments
 }
 
 function loadConsultants(): Profile[] {
