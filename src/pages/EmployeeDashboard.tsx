@@ -184,16 +184,28 @@ function loadConsultants(): Profile[] {
 
 type Tab = 'overview' | 'cv' | 'team'
 
+/** Merge saved CV edits from localStorage on top of a base profile. */
+function applysavedEdits(base: Profile): Profile {
+  const savedEdits = loadSavedProfileEdits()
+  const mine = savedEdits[base.id]
+  return mine ? { ...base, ...mine } : base
+}
+
 export default function EmployeeDashboard() {
   const { profile: authProfile } = useAuth()
-  const [myProfile, setMyProfile] = useState<Profile | null>(authProfile)
+
+  // Initialise with saved edits already merged so the CV is correct on first
+  // render and survives page reloads without overwriting persisted data.
+  const [myProfile, setMyProfile] = useState<Profile | null>(
+    authProfile ? applysavedEdits(authProfile) : null,
+  )
   const [cvDirty, setCvDirty] = useState(false)
   const [cvSaved, setCvSaved] = useState(false)
 
-  // Keep myProfile in sync with authProfile (handles cases where auth resolves
-  // after the component first mounts, e.g. on hard refresh)
+  // Re-sync when authProfile resolves (hard refresh / session restore).
+  // Apply saved edits so persisted data is never lost.
   useEffect(() => {
-    if (authProfile) setMyProfile(authProfile)
+    if (authProfile) setMyProfile(applysavedEdits(authProfile))
   }, [authProfile])
 
   const [tab, setTab] = useState<Tab>('overview')
@@ -252,19 +264,17 @@ export default function EmployeeDashboard() {
   const isOnProject = myAssignments.length > 0
 
   // ── Build enrichedProfile: single source of truth for this consultant's CV ─
-  // allConsultants (from loadConsultants) has: HISTORIC_ENRICHMENT + live Kimble
-  // industry/area + saved CV edits (bio, experience, skills, etc.).
-  // We use it as the full base so every view shows the same data, then overlay
-  // the in-session myProfile state (captures unsaved edits during this session)
-  // and add annual_dedication_pct from the raw Kimble dedications map.
+  // Layer order (each overrides the previous):
+  //   enrichedConsultant  → HISTORIC_ENRICHMENT + live Kimble area/industry
+  //   pick(profile, ...)  → saved CV edits already baked into myProfile on init
+  //                         + any in-session unsaved edits from this session
+  //   annual_dedication_pct → live from Kimble dedications map
   const kimbleResult = loadKimbleResult()
   const enrichedConsultant = allConsultants.find((c) => c.id === consultantId) ?? profile
   const enrichedProfile: Profile = (() => {
-    // enrichedConsultant has saved edits + Kimble data; myProfile (profile) has
-    // any further in-session edits not yet flushed (they are flushed on every
-    // onUpdate call, so these are effectively always in sync).
+    // profile (myProfile) was initialised with applysavedEdits(), so pick() here
+    // correctly surfaces both persisted and in-session edits over the Kimble base.
     const base: Profile = { ...enrichedConsultant, ...pick(profile, EDITABLE_PROFILE_KEYS) }
-
     if (!kimbleResult) return base
     const normP = normName(profile.name)
     const kimbleName = Object.keys(kimbleResult.consultantDedications).find(
