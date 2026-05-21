@@ -865,8 +865,8 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Consultant directory */}
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+              {/* Consultant directory — hidden for active projects */}
+              {!isActiveProject && <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Search size={15} className="text-slate-400" />
                   <Input
@@ -895,7 +895,7 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
         </TabsContent>
