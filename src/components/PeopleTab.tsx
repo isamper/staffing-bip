@@ -18,6 +18,7 @@ interface ProjectInfo {
   dedication: number
   endDate: string
   startDate: string   // when the consultant started on this project (for tenure badge)
+  past: boolean       // true when the assignment has already ended
 }
 
 interface ConsultantStats {
@@ -33,6 +34,7 @@ interface ConsultantStats {
   pastBeachTasks: BeachAssignment[]
   pastVacations: VacationRequest[]
   projectsInfo: ProjectInfo[]
+  pastProjectsInfo: ProjectInfo[]
 }
 
 // ─── filter chip ─────────────────────────────────────────────────────────────
@@ -96,7 +98,11 @@ function DedicationBar({ value, max }: { value: number; max: number }) {
 }
 
 function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void; onDeactivate: (id: string) => void }) {
-  const { consultant, totalDedication, maxDedication, projectsInfo } = stats
+  const { consultant, totalDedication, maxDedication, projectsInfo, pastProjectsInfo } = stats
+  const allProjects = [
+    ...projectsInfo.map(p => ({ ...p, past: false as const })),
+    ...pastProjectsInfo.map(p => ({ ...p, past: true as const })),
+  ]
   return (
     <div
       onClick={onClick}
@@ -116,15 +122,19 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
         </div>
       </div>
 
-      {/* Current assignments */}
+      {/* Current + past assignments */}
       <div className="flex-1 min-w-0">
-        {projectsInfo.length === 0 ? (
+        {allProjects.length === 0 ? (
           <p className="text-xs text-slate-400 mt-1">No current assignments</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {projectsInfo.map((p, i) => {
-              const months = Math.floor((Date.now() - new Date(p.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
-              const tenureColor = months > 12
+            {allProjects.map((p, i) => {
+              // Active: months from start → today. Past: total duration start → end.
+              const refDate = p.past ? new Date(p.endDate + 'T00:00:00') : new Date()
+              const months = Math.floor((refDate.getTime() - new Date(p.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+              const tenureColor = p.past
+                ? 'bg-slate-100 text-slate-400 border-slate-200'
+                : months > 12
                 ? 'bg-red-100 text-red-700 border-red-200'
                 : months >= 6
                 ? 'bg-amber-100 text-amber-700 border-amber-200'
@@ -132,11 +142,15 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
               return (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded-full bg-navy-50 border border-navy-100 px-2 py-0.5 text-xs text-navy-700"
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                    p.past
+                      ? 'bg-slate-50 border-slate-200 text-slate-400'
+                      : 'bg-navy-50 border-navy-100 text-navy-700'
+                  }`}
                 >
                   <span className="font-medium">{p.dedication}%</span>
-                  <span className="text-navy-500">{p.name}</span>
-                  <span className="text-navy-300">· {formatDate(p.endDate)}</span>
+                  <span className={p.past ? 'text-slate-400' : 'text-navy-500'}>{p.name}</span>
+                  <span className={p.past ? 'text-slate-300' : 'text-navy-300'}>· {formatDate(p.endDate)}</span>
                   <span className={`ml-0.5 rounded-full border px-1.5 py-px text-xs font-semibold ${tenureColor}`}>
                     {months}mo
                   </span>
@@ -279,9 +293,31 @@ export default function PeopleTab({
                 name: proj.name,
                 dedication: a.dedication_percentage,
                 endDate: a.end_date ?? proj.end_date,
-                // Use the assignment's own start date (from Kimble) so tenure is accurate.
-                // Fall back to the project start date if not available.
                 startDate: a.start_date ?? proj.start_date,
+                past: false,
+              }
+            : null
+        })
+        .filter((x): x is ProjectInfo => x !== null)
+
+      // Past assignments: window has already ended (started but rolled off)
+      const pastProjectsInfo: ProjectInfo[] = assignments
+        .filter((a) => {
+          if (a.consultant_id !== c.id) return false
+          if (!a.end_date) return false
+          if (new Date(a.end_date + 'T00:00:00') >= today) return false
+          if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
+          return true
+        })
+        .map((a) => {
+          const proj = projects.find((p) => p.id === a.project_id)
+          return proj
+            ? {
+                name: proj.name,
+                dedication: a.dedication_percentage,
+                endDate: a.end_date!,
+                startDate: a.start_date ?? proj.start_date,
+                past: true,
               }
             : null
         })
@@ -317,6 +353,7 @@ export default function PeopleTab({
         pastBeachTasks,
         pastVacations,
         projectsInfo,
+        pastProjectsInfo,
       }
     })
     // Sort: over-dedicated first, then rolling off, then on project, then beach, then available
