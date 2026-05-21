@@ -27,12 +27,25 @@ export interface KimbleImportResult {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function parseDMY(dateStr: string): string {
-  // "6/04/2026" or "17/07/2026" → "2026-04-06"
-  const parts = String(dateStr).split('/')
-  if (parts.length !== 3) return dateStr
-  const [d, m, y] = parts
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+function parseDMY(rawDate: string | number | null | undefined): string {
+  if (rawDate === null || rawDate === undefined || rawDate === '') return ''
+
+  // Excel stores dates as integer serial numbers (days since Jan 0 1900).
+  // The library returns them as JS numbers when the cell's format isn't plain text.
+  // Formula: (serial − 25569) × 86400 × 1000 ms → UTC midnight of that date.
+  if (typeof rawDate === 'number') {
+    const ms = Math.round((rawDate - 25569) * 86400 * 1000)
+    return new Date(ms).toISOString().split('T')[0]   // "2026-04-06"
+  }
+
+  // String in "d/m/yyyy" format, e.g. "6/04/2026" or "17/07/2026"
+  const parts = String(rawDate).split('/')
+  if (parts.length === 3) {
+    const [d, m, y] = parts
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
+
+  return String(rawDate) // already ISO or unknown — pass through
 }
 
 function extractCode(engagementName: string): string {
@@ -105,8 +118,6 @@ export function parseKimbleExcel(
           const engRaw  = String(row[5] ?? '')
           const code    = extractCode(engRaw)
           const resourceName = String(row[3] ?? '').trim()
-          const startRaw = String(row[6] ?? '')
-          const endRaw   = String(row[9] ?? '')
           const usageDays = Number(row[10] ?? 0)
           const industry  = String(row[12] ?? '').trim()
           const serviceArea = String(row[11] ?? '').trim()
@@ -118,8 +129,10 @@ export function parseKimbleExcel(
           if (industry && industry !== 'Other') areaEntry.industries.add(industry)
           if (serviceArea) areaEntry.areas.add(serviceArea)
 
-          const parsedStart = parseDMY(startRaw)
-          const parsedEnd   = parseDMY(endRaw)
+          // Pass raw cell values — parseDMY handles both "d/m/yyyy" strings
+          // and Excel serial numbers (e.g. 46177 → "2026-04-06")
+          const parsedStart = parseDMY(row[6])
+          const parsedEnd   = parseDMY(row[9])
 
           if (!projectMap.has(code)) {
             projectMap.set(code, {
@@ -172,7 +185,7 @@ export function parseKimbleExcel(
 
           const engRaw  = String(row[5] ?? '')
           const code    = extractCode(engRaw)
-          const endDate = parseDMY(String(row[9] ?? ''))
+          const endDate = parseDMY(row[9])
 
           // Skip if the project has already ended
           if (endDate < todayStr) continue
@@ -184,7 +197,7 @@ export function parseKimbleExcel(
               client: String(row[4] ?? '').trim(),
               industry: String(row[12] ?? 'Other').trim() || 'Other',
               serviceArea: String(row[11] ?? '').trim(),
-              startDate: parseDMY(String(row[6] ?? '')),
+              startDate: parseDMY(row[6]),
               endDate,
               generics: [],
             })
@@ -244,8 +257,8 @@ export function parseKimbleExcel(
           const code           = extractCode(engRaw)
           const consultantName = String(row[3] ?? '').trim()
           const usageDays      = Number(row[10] ?? 0)
-          const rowStartDate   = parseDMY(String(row[6] ?? ''))
-          const rowEndDate     = parseDMY(String(row[9] ?? ''))
+          const rowStartDate   = parseDMY(row[6])
+          const rowEndDate     = parseDMY(row[9])
 
           const key: MergedKey = `${code}||${consultantName}`
           const existing = mergedMap.get(key)
