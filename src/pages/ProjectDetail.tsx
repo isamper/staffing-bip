@@ -263,8 +263,8 @@ export default function ProjectDetail() {
             </CardContent>
           </Card>
 
-          {/* Interested consultants */}
-          {interestedConsultants.length > 0 && (
+          {/* Interested consultants — only for open/partially staffed projects */}
+          {!isActiveProject && interestedConsultants.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm">
