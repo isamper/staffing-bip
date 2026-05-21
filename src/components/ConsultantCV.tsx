@@ -63,6 +63,12 @@ function EditableText({
 
   const inputCls = inputClassName || 'bg-white text-slate-800'
 
+  // Auto-save when focus leaves the field (e.g. user clicks "Guardar CV").
+  // The cancel button uses onMouseDown + preventDefault to suppress blur so
+  // the cancel path can restore the original value without triggering a save.
+  const commit = () => { onSave(draft); setEditing(false) }
+  const cancel  = () => { setDraft(value); setEditing(false) }
+
   if (editing) {
     return (
       <div className="flex gap-1 items-start">
@@ -71,19 +77,27 @@ function EditableText({
             className={`flex-1 rounded border border-navy-300 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 resize-none ${inputCls}`}
             value={draft}
             rows={4}
-            onChange={e => setDraft(e.target.value)}
             autoFocus
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); cancel() } }}
           />
         ) : (
           <input
             className={`flex-1 rounded border border-navy-300 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 ${inputCls}`}
             value={draft}
-            onChange={e => setDraft(e.target.value)}
             autoFocus
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => {
+              if (e.key === 'Enter')  { e.preventDefault(); commit() }
+              if (e.key === 'Escape') { e.preventDefault(); cancel() }
+            }}
           />
         )}
-        <button onClick={() => { onSave(draft); setEditing(false) }} className="text-green-400 hover:text-green-300 mt-1"><Check size={14} /></button>
-        <button onClick={() => { setDraft(value); setEditing(false) }} className="text-slate-400 hover:text-slate-300 mt-1"><X size={14} /></button>
+        {/* onMouseDown preventDefault stops blur from firing before the click */}
+        <button onMouseDown={e => e.preventDefault()} onClick={commit}  className="text-green-400 hover:text-green-300 mt-1"><Check size={14} /></button>
+        <button onMouseDown={e => e.preventDefault()} onClick={cancel}  className="text-slate-400 hover:text-slate-300 mt-1"><X size={14} /></button>
       </div>
     )
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
@@ -132,6 +132,7 @@ const PROFILES_STORAGE_KEY = 'bench_profiles_v1'
 
 /** Fields a consultant can edit in their CV (persisted to localStorage) */
 const EDITABLE_PROFILE_KEYS: (keyof Profile)[] = [
+  'role_title', 'seniority',
   'bio', 'education', 'languages', 'years_of_experience',
   'certifications', 'experience', 'skills', 'photo_url',
 ]
@@ -199,6 +200,10 @@ export default function EmployeeDashboard() {
   const [myProfile, setMyProfile] = useState<Profile | null>(
     authProfile ? applysavedEdits(authProfile) : null,
   )
+  // Ref always holds the latest profile so saveCV never reads a stale closure
+  const latestProfile = useRef(myProfile)
+  latestProfile.current = myProfile   // updated every render, before any click handler runs
+
   const [cvDirty, setCvDirty] = useState(false)
   const [cvSaved, setCvSaved] = useState(false)
 
@@ -297,13 +302,16 @@ export default function EmployeeDashboard() {
     })
   }
 
-  /** Persist current myProfile edits to localStorage so all views update. */
+  /** Persist current edits to localStorage so all views update. */
   function saveCV() {
-    if (!myProfile) return
+    // Read from ref — guaranteed to be the latest value even if a blur-triggered
+    // setMyProfile hasn't been flushed by React yet when this click handler runs.
+    const toSave = latestProfile.current
+    if (!toSave) return
     try {
       const raw = localStorage.getItem(PROFILES_STORAGE_KEY) ?? '{}'
       const saved = JSON.parse(raw) as Record<string, Partial<Profile>>
-      saved[myProfile.id] = pick(myProfile, EDITABLE_PROFILE_KEYS) as Partial<Profile>
+      saved[toSave.id] = pick(toSave, EDITABLE_PROFILE_KEYS) as Partial<Profile>
       localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(saved))
     } catch { /* storage full */ }
     setCvDirty(false)
