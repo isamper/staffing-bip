@@ -187,6 +187,14 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
         {totalDedication > 0 && (
           <DedicationBar value={totalDedication} max={maxDedication} />
         )}
+        {consultant.annual_dedication_pct !== undefined && (
+          <p className="text-xs text-slate-400">
+            Cargabilidad 2026:{' '}
+            <span className={`font-semibold ${consultant.annual_dedication_pct > 80 ? 'text-bip-red' : 'text-navy-700'}`}>
+              {consultant.annual_dedication_pct}%
+            </span>
+          </p>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation()
