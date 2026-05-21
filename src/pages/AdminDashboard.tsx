@@ -397,8 +397,11 @@ export default function AdminDashboard() {
         }
       }
 
+      // Keep ONLY projects that appear in the Kimble file.
+      // Anything not in Kimble is a project that ended before this year — discard it.
       return prev
-        .map((p) => updatedById.get(p.id) ?? p)
+        .filter((p) => updatedById.has(p.id))
+        .map((p) => updatedById.get(p.id)!)
         .concat(brandNewProjects)
     })
 
@@ -424,20 +427,8 @@ export default function AdminDashboard() {
         return [a]
       })
 
-    setAssignments((prev) => {
-      // For every project covered by this Kimble import, discard ALL previous
-      // assignments (mock or kimble) so stale data never mixes with fresh Kimble data.
-      // Projects NOT in the Kimble export keep their existing (manual) assignments.
-      const coveredProjectIds = new Set<string>()
-      for (const kp of result.projects) {
-        const resolvedId = numericToExistingId.get(numericCode(kp.id)) ?? kp.id
-        coveredProjectIds.add(resolvedId)
-      }
-      const kept = prev.filter(
-        (a) => !a.id.startsWith('kimble-') && !coveredProjectIds.has(a.project_id),
-      )
-      return [...kept, ...newAssignments]
-    })
+    // Kimble is the source of truth for the full year — replace everything.
+    setAssignments(newAssignments)
 
     // 3. Update annual_dedication_pct + merge industry/area data on matching profiles
     setConsultants((prev) =>
