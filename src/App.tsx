@@ -6,7 +6,6 @@ import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import EmployeeDashboard from '@/pages/EmployeeDashboard'
 import AdminDashboard from '@/pages/AdminDashboard'
-import ProjectDetail from '@/pages/ProjectDetail'
 import Analytics from '@/pages/Analytics'
 
 const queryClient = new QueryClient()
@@ -40,14 +39,6 @@ export default function App() {
               element={
                 <ProtectedRoute role="hr_admin">
                   <Analytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/project/:id"
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
                 </ProtectedRoute>
               }
             />

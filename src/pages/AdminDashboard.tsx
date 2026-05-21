@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Search, Heart,
-  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X,
+  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { SUGGESTED_SKILLS, ALL_SKILLS } from '@/lib/skills'
@@ -318,6 +317,9 @@ export default function AdminDashboard() {
   const [kimbleModalOpen, setKimbleModalOpen] = useState(false)
   const [lastImport, setLastImport] = useState<string | null>(null)
   const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
+  const [addDedication, setAddDedication] = useState(100)
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
@@ -454,6 +456,24 @@ export default function AdminDashboard() {
     ])
   }
 
+  function handleManualAdd(consultantId: string) {
+    if (!selectedProject) return
+    setAssignments((prev) => [
+      ...prev,
+      {
+        id: `manual-${Date.now()}`,
+        project_id: selectedProject.id,
+        consultant_id: consultantId,
+        dedication_percentage: addDedication,
+        end_date: selectedProject.end_date,
+        assigned_at: new Date().toISOString(),
+      },
+    ])
+    setShowAddModal(false)
+    setAddSearch('')
+    setAddDedication(100)
+  }
+
   function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string) {
     setBeachAssignments((prev) => [
       ...prev,
@@ -494,6 +514,77 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
+      {/* Add Person modal */}
+      {showAddModal && selectedProject && (() => {
+        const assignedIds = assignments.filter((a) => a.project_id === selectedProject.id).map((a) => a.consultant_id)
+        const candidates = consultants.filter(
+          (c) =>
+            c.is_active &&
+            !assignedIds.includes(c.id) &&
+            (addSearch === '' ||
+              c.name.toLowerCase().includes(addSearch.toLowerCase()) ||
+              c.role_title.toLowerCase().includes(addSearch.toLowerCase()) ||
+              c.skills.some((s) => s.toLowerCase().includes(addSearch.toLowerCase()))),
+        )
+        return (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-20 overflow-y-auto">
+            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <h2 className="text-sm font-semibold text-navy-800">Agregar persona — {selectedProject.name}</h2>
+                <button onClick={() => { setShowAddModal(false); setAddSearch('') }} className="text-slate-400 hover:text-slate-600">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Dedicación (%)</label>
+                  <Input
+                    type="number"
+                    min={10}
+                    max={100}
+                    step={10}
+                    value={addDedication}
+                    onChange={(e) => setAddDedication(Number(e.target.value))}
+                    className="h-8 text-sm w-28"
+                  />
+                </div>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Buscar por nombre, cargo o habilidad…"
+                    value={addSearch}
+                    onChange={(e) => setAddSearch(e.target.value)}
+                    className="h-9 pl-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+                  {candidates.length === 0 ? (
+                    <p className="text-center text-sm text-slate-400 py-6">No se encontraron consultores disponibles.</p>
+                  ) : (
+                    candidates.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleManualAdd(c.id)}
+                        className="flex w-full items-center gap-3 rounded-lg border border-slate-100 p-2.5 text-left hover:border-navy-400 hover:bg-slate-50 transition"
+                      >
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback className="text-xs">{getInitials(c.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-navy-800 truncate">{c.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{c.role_title} · {c.seniority}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       <KimbleImportModal
         open={kimbleModalOpen}
         onClose={() => setKimbleModalOpen(false)}
@@ -611,12 +702,6 @@ export default function AdminDashboard() {
                       <Badge variant={projectStatusVariant(selectedProject.status)}>
                         {selectedProject.status}
                       </Badge>
-                      <Link
-                        to={`/project/${selectedProject.id}`}
-                        className="text-xs text-navy-600 hover:underline"
-                      >
-                        Details →
-                      </Link>
                     </div>
                   </div>
 
@@ -633,15 +718,25 @@ export default function AdminDashboard() {
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                           Assigned Team ({assignedConsultants.length})
                         </p>
-                        {assignedConsultants.some(({ consultant }) => {
-                          const total = getTotalDedication(consultant.id, assignments, today)
-                          return total > (MAX_CARGABILITY[consultant.seniority] ?? 100)
-                        }) && (
-                          <span className="flex items-center gap-1 text-xs text-red-600">
-                            <AlertTriangle size={12} />
-                            Over-dedicated members
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1.5 text-xs"
+                            onClick={() => setShowAddModal(true)}
+                          >
+                            <UserPlus size={13} /> Agregar persona
+                          </Button>
+                          {assignedConsultants.some(({ consultant }) => {
+                            const total = getTotalDedication(consultant.id, assignments, today)
+                            return total > (MAX_CARGABILITY[consultant.seniority] ?? 100)
+                          }) && (
+                            <span className="flex items-center gap-1 text-xs text-red-600">
+                              <AlertTriangle size={12} />
+                              Over-dedicated members
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {assignedConsultants.length === 0 ? (
                         <p className="text-sm text-slate-400">No assignments recorded.</p>
