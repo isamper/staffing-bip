@@ -498,7 +498,12 @@ export default function AdminDashboard() {
       ? [{ position: null, results: matchConsultants(selectedProject, consultants, mockLikes, vacations, assignments) }]
       : []
 
-  const assignedToSelected = assignments.filter((a) => a.project_id === selectedProject?.id)
+  const assignedToSelected = assignments.filter((a) => {
+    if (a.project_id !== selectedProject?.id) return false
+    // Hide team members whose individual assignment has already ended
+    if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+    return true
+  })
   const assignedIds = assignedToSelected.map((a) => a.consultant_id)
 
   const assignedConsultants = assignedIds
