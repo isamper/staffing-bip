@@ -187,14 +187,6 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
         {totalDedication > 0 && (
           <DedicationBar value={totalDedication} max={maxDedication} />
         )}
-        {consultant.annual_dedication_pct !== undefined && (
-          <p className="text-xs text-slate-400">
-            Cargabilidad 2026:{' '}
-            <span className={`font-semibold ${consultant.annual_dedication_pct > 80 ? 'text-bip-red' : 'text-navy-700'}`}>
-              {consultant.annual_dedication_pct}%
-            </span>
-          </p>
-        )}
         <button
           onClick={(e) => {
             e.stopPropagation()
@@ -259,6 +251,11 @@ export default function PeopleTab({
     .map((c) => {
       const activeAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
+        // Respect the individual assignment window, not just the project end date.
+        // Only count this person as active on the project if today falls within
+        // their personal start→end window.
+        if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+        if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
         const proj = projects.find((p) => p.id === a.project_id)
         return proj ? new Date(proj.end_date) >= today : false
       })
