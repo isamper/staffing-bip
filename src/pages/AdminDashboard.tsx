@@ -342,17 +342,52 @@ export default function AdminDashboard() {
     const normName = (s: string) =>
       s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
-    // 1. Upsert projects — replace by kimble_code, keep manual ones
+    // Strip prefix + leading zeros to get a bare numeric code for matching.
+    // "e000600" → "600", "p600" → "600", "p711" → "711"
+    const numericCode = (id: string) => {
+      const m = id.match(/(\d+)$/)
+      return m ? String(parseInt(m[1], 10)) : id
+    }
+
+    // 1. Upsert projects — match by numeric suffix, update in-place to keep original IDs.
+    //    This prevents duplicates when mock IDs use "p600" and Kimble IDs use "e000600".
+    //    Build a map: numericCode → existing project ID (for assignment resolution below).
+    const numericToExistingId = new Map<string, string>()
+    projects.forEach((p) => numericToExistingId.set(numericCode(p.id), p.id))
+
     setProjects((prev) => {
-      const kimbleIds = new Set(result.projects.map((p) => p.id))
-      const kept = prev.filter((p) => {
-        const code = (p as any).kimble_code as string | undefined
-        return !code || !kimbleIds.has(code)
-      })
-      return [...kept, ...result.projects]
+      const updatedById = new Map<string, Project>()
+      const brandNewProjects: Project[] = []
+
+      for (const kp of result.projects) {
+        const nc = numericCode(kp.id)
+        const existingId = numericToExistingId.get(nc)
+        if (existingId) {
+          // Update the existing project in-place, preserving its original ID so all
+          // existing assignments (which reference "p600", etc.) continue to resolve.
+          const existing = prev.find((p) => p.id === existingId)!
+          updatedById.set(existingId, {
+            ...existing,
+            name: kp.name || existing.name,
+            client: kp.client || existing.client,
+            end_date: kp.end_date,
+            status: kp.status,
+            team_size: kp.team_size,
+          })
+        } else {
+          // Genuinely new project from Kimble — add it
+          brandNewProjects.push(kp)
+          numericToExistingId.set(nc, kp.id) // so assignments below resolve correctly
+        }
+      }
+
+      return prev
+        .map((p) => updatedById.get(p.id) ?? p)
+        .concat(brandNewProjects)
     })
 
-    // 2. Build project assignments from raw Kimble rows, resolving name → id
+    // 2. Build project assignments from raw Kimble rows, resolving name → consultant id
+    //    and Kimble project code → existing project id (preserving "p600" style ids).
     const normToId: Record<string, string> = {}
     consultants.forEach((c) => { normToId[normName(c.name)] = c.id })
 
@@ -360,9 +395,11 @@ export default function AdminDashboard() {
       .flatMap((ra, i) => {
         const consultantId = normToId[normName(ra.consultantName)]
         if (!consultantId) return []
+        // Resolve to existing project ID (e.g. "p600") or fall back to Kimble code
+        const resolvedProjectId = numericToExistingId.get(numericCode(ra.projectId)) ?? ra.projectId
         const a: ProjectAssignment = {
           id: `kimble-${ra.projectId}-${i}`,
-          project_id: ra.projectId,
+          project_id: resolvedProjectId,
           consultant_id: consultantId,
           dedication_percentage: ra.projectDedPct,
           end_date: ra.endDate,
