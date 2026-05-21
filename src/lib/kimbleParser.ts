@@ -10,7 +10,8 @@ export interface KimbleRawAssignment {
   usageDays: number        // Forecast P2 Usage (working days on the project)
   projectWorkDays: number  // Colombian working days in project's date range
   projectDedPct: number    // usageDays / projectWorkDays * 100
-  endDate: string          // YYYY-MM-DD (Forecast P2 End Date)
+  startDate: string        // YYYY-MM-DD (earliest start date for this consultant on this project)
+  endDate: string          // YYYY-MM-DD (latest end date for this consultant on this project)
 }
 
 export interface KimbleImportResult {
@@ -295,6 +296,7 @@ export function parseKimbleExcel(
             usageDays: entry.totalUsageDays,
             projectWorkDays: consultantWorkDays,
             projectDedPct,
+            startDate: entry.earliestStartDate,
             endDate: entry.latestEndDate,
           }
         })

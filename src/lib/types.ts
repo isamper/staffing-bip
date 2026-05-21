@@ -86,7 +86,8 @@ export interface ProjectAssignment {
   project_id: string
   consultant_id: string
   dedication_percentage: number
-  end_date: string | null
+  start_date?: string | null   // when the consultant starts on this project
+  end_date: string | null      // when the consultant ends on this project
   assigned_at: string
   assigned_by?: string
 }

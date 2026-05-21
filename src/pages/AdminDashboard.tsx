@@ -421,6 +421,7 @@ export default function AdminDashboard() {
           project_id: resolvedProjectId,
           consultant_id: consultantId,
           dedication_percentage: ra.projectDedPct,
+          start_date: ra.startDate,
           end_date: ra.endDate,
           assigned_at: result.importedAt,
         }
@@ -500,8 +501,10 @@ export default function AdminDashboard() {
 
   const assignedToSelected = assignments.filter((a) => {
     if (a.project_id !== selectedProject?.id) return false
-    // Hide team members whose individual assignment has already ended
+    // Only show consultants who are on the project TODAY:
+    // their window must have started already and not yet ended.
     if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+    if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
     return true
   })
   const assignedIds = assignedToSelected.map((a) => a.consultant_id)
