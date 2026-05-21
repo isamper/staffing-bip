@@ -122,15 +122,36 @@ function loadAssignments(): ProjectAssignment[] {
 }
 
 function loadConsultants(): Profile[] {
-  // Deactivations are the only persistent change to profiles
+  // 1. Start from mockConsultants (already has HISTORIC_ENRICHMENT data)
+  let list: Profile[] = mockConsultants
+
+  // 2. Apply deactivations
   try {
     const raw = localStorage.getItem('bench_deactivated_v1')
     const deactivated: Set<string> = raw ? new Set(JSON.parse(raw) as string[]) : new Set()
-    if (deactivated.size === 0) return mockConsultants
-    return mockConsultants.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c)
-  } catch {
-    return mockConsultants
+    if (deactivated.size > 0) {
+      list = list.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c)
+    }
+  } catch { /* ignore */ }
+
+  // 3. Apply live Kimble enrichment (industry_experience, kimble_service_areas)
+  //    so CVs in the Equipo tab match what Vista Admin shows
+  const result = loadKimbleResult()
+  if (result) {
+    list = list.map((c) => {
+      const normC = normName(c.name)
+      const areaKey = Object.keys(result.consultantAreaData).find((k) => normName(k) === normC)
+      const newAreas = areaKey ? result.consultantAreaData[areaKey] : null
+      if (!newAreas) return c
+      return {
+        ...c,
+        industry_experience: [...new Set([...(c.industry_experience ?? []), ...newAreas.industries])],
+        kimble_service_areas: [...new Set([...(c.kimble_service_areas ?? []), ...newAreas.areas])],
+      }
+    })
   }
+
+  return list
 }
 
 type Tab = 'overview' | 'cv' | 'team'
@@ -200,33 +221,30 @@ export default function EmployeeDashboard() {
   }, null)
   const isOnProject = myAssignments.length > 0
 
-  // ── Enrich profile with live Kimble data (annual dedication + industry/areas) ──
-  // The profile from AuthContext has the historic HISTORIC_ENRICHMENT fields,
-  // but the live Kimble import only updates the admin's React state. We read
-  // bench_kimble_result_v1 directly and merge the fields here.
+  // ── Enrich profile with live Kimble data ──────────────────────────────────
+  // allConsultants (from loadConsultants) already has HISTORIC_ENRICHMENT +
+  // live Kimble industry/area data merged. Use it as the canonical source for
+  // those read-only Kimble fields so Vista Consultor matches Vista Admin.
+  // We keep `profile` (myProfile) as base for editable CV fields (bio, skills…)
+  // and only add annual_dedication_pct on top from the raw Kimble dedications.
   const kimbleResult = loadKimbleResult()
+  const enrichedConsultant = allConsultants.find((c) => c.id === consultantId) ?? profile
   const enrichedProfile: Profile = (() => {
-    if (!kimbleResult) return profile
-    const normP = normName(profile.name)
+    // Base = myProfile (has user's own edits to bio / skills / etc.)
+    // Override Kimble read-only fields from the enriched consultant list
+    const base: Profile = {
+      ...profile,
+      industry_experience: enrichedConsultant.industry_experience,
+      kimble_service_areas: enrichedConsultant.kimble_service_areas,
+    }
 
+    if (!kimbleResult) return base
+    const normP = normName(profile.name)
     const kimbleName = Object.keys(kimbleResult.consultantDedications).find(
       (k) => normName(k) === normP,
     )
     const pct = kimbleName !== undefined ? kimbleResult.consultantDedications[kimbleName] : undefined
-
-    const areaKey = Object.keys(kimbleResult.consultantAreaData).find(
-      (k) => normName(k) === normP,
-    )
-    const newAreas = areaKey ? kimbleResult.consultantAreaData[areaKey] : null
-
-    return {
-      ...profile,
-      ...(pct !== undefined ? { annual_dedication_pct: pct } : {}),
-      ...(newAreas ? {
-        industry_experience: [...new Set([...(profile.industry_experience ?? []), ...newAreas.industries])],
-        kimble_service_areas: [...new Set([...(profile.kimble_service_areas ?? []), ...newAreas.areas])],
-      } : {}),
-    }
+    return pct !== undefined ? { ...base, annual_dedication_pct: pct } : base
   })()
 
   const myLikes = likes.filter((l) => l.consultant_id === profile.id).map((l) => l.project_id)
