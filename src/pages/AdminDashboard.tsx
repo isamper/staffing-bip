@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search, Heart,
-  CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X,
+  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { SUGGESTED_SKILLS, ALL_SKILLS } from '@/lib/skills'
@@ -407,8 +407,6 @@ export default function AdminDashboard() {
         c.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()))),
   )
 
-  const pendingVacations = vacations.filter((v) => v.status === 'Pending')
-
   const isActiveProject = selectedProject?.status === 'Active'
 
   // Per-position suggestions using the same scorer as Staffing Plan
@@ -474,10 +472,20 @@ export default function AdminDashboard() {
     setBeachAssignments((prev) => prev.filter((b) => b.id !== id))
   }
 
-  function handleVacation(id: string, status: 'Approved' | 'Rejected') {
-    setVacations((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, status, reviewed_at: new Date().toISOString() } : v)),
-    )
+  function handleAddVacation(consultantId: string, startDate: string, endDate: string, note: string) {
+    const v: VacationRequest = {
+      id: `v-${Date.now()}`,
+      consultant_id: consultantId,
+      start_date: startDate,
+      end_date: endDate,
+      note: note || undefined,
+      created_at: new Date().toISOString(),
+    }
+    setVacations((prev) => [...prev, v])
+  }
+
+  function handleRemoveVacation(id: string) {
+    setVacations((prev) => prev.filter((v) => v.id !== id))
   }
 
   function toggleReplacements(consultantId: string) {
@@ -519,14 +527,6 @@ export default function AdminDashboard() {
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="people">People</TabsTrigger>
           <TabsTrigger value="staffing">Staffing Plan</TabsTrigger>
-          <TabsTrigger value="timeoff">
-            Time Off
-            {pendingVacations.length > 0 && (
-              <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-bip-red text-xs text-white">
-                {pendingVacations.length}
-              </span>
-            )}
-          </TabsTrigger>
         </TabsList>
 
         {/* Projects tab */}
@@ -799,108 +799,12 @@ export default function AdminDashboard() {
             projects={projects}
             assignments={assignments}
             beachAssignments={beachAssignments}
+            vacations={vacations}
             onAssignBeach={handleAssignBeach}
             onRemoveBeach={handleRemoveBeach}
+            onAddVacation={handleAddVacation}
+            onRemoveVacation={handleRemoveVacation}
           />
-        </TabsContent>
-
-        {/* Time Off tab */}
-        <TabsContent value="timeoff">
-          <div className="space-y-6">
-            {pendingVacations.length > 0 && (
-              <div>
-                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Pending Requests ({pendingVacations.length})
-                </p>
-                <div className="space-y-3">
-                  {pendingVacations.map((v) => {
-                    const consultant = mockConsultants.find((c) => c.id === v.consultant_id)
-                    return (
-                      <Card key={v.id}>
-                        <CardContent className="flex items-center justify-between p-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                              <AvatarFallback className="text-xs">
-                                {getInitials(consultant?.name ?? '?')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium text-navy-800">{consultant?.name}</p>
-                              <p className="text-sm text-slate-500">
-                                {formatDate(v.start_date)} – {formatDate(v.end_date)}
-                              </p>
-                              {v.note && <p className="text-xs text-slate-400">{v.note}</p>}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
-                              onClick={() => handleVacation(v.id, 'Approved')}
-                            >
-                              <CheckCircle size={14} /> Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
-                              onClick={() => handleVacation(v.id, 'Rejected')}
-                            >
-                              <XCircle size={14} /> Reject
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-                All Time Off Requests
-              </p>
-              <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left font-medium text-slate-600">Consultant</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-slate-600">Dates</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-slate-600">Note</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-slate-600">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {vacations.map((v) => {
-                      const c = mockConsultants.find((c) => c.id === v.consultant_id)
-                      return (
-                        <tr key={v.id} className="bg-white">
-                          <td className="px-4 py-3">{c?.name ?? '—'}</td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {formatDate(v.start_date)} – {formatDate(v.end_date)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-400">{v.note ?? '—'}</td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant={
-                                v.status === 'Approved' ? 'success'
-                                : v.status === 'Rejected' ? 'destructive'
-                                : 'pending'
-                              }
-                            >
-                              {v.status}
-                            </Badge>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
         </TabsContent>
 
         {/* Staffing Plan tab */}

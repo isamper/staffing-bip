@@ -822,44 +822,14 @@ export const mockVacationRequests: VacationRequest[] = [
     consultant_id: 'c1',
     start_date: '2026-05-05',
     end_date: '2026-05-09',
-    note: 'Family vacation',
-    status: 'Approved',
-    reviewed_by: 'hr1',
-    reviewed_at: '2026-04-01T00:00:00Z',
+    note: 'Vacaciones familiares',
     created_at: '2026-03-28T00:00:00Z',
-  },
-  {
-    id: 'v2',
-    consultant_id: 'c2',
-    start_date: '2026-04-28',
-    end_date: '2026-04-30',
-    note: 'Personal days',
-    status: 'Pending',
-    created_at: '2026-04-10T00:00:00Z',
-  },
-  {
-    id: 'v3',
-    consultant_id: 'c6',
-    start_date: '2026-05-19',
-    end_date: '2026-05-23',
-    status: 'Pending',
-    created_at: '2026-04-12T00:00:00Z',
   },
 ]
 
 export const mockLikes: ProjectLike[] = []
 
-export const mockNotifications: Notification[] = [
-  {
-    id: 'n1',
-    user_id: 'c1',
-    type: 'vacation_approved',
-    title: 'Vacation Approved',
-    body: 'Your vacation request for May 5–9 has been approved.',
-    read: false,
-    created_at: '2026-04-01T00:00:00Z',
-  },
-]
+export const mockNotifications: Notification[] = []
 
 export const DEMO_USERS = {
   'carla.villaverde@bip-group.com': {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, AlertTriangle, Clock, ChevronRight, Info, Umbrella, X } from 'lucide-react'
+import { Search, AlertTriangle, Clock, ChevronRight, Info, Umbrella, X, CalendarOff } from 'lucide-react'
 import { MAX_CARGABILITY } from '@/lib/constants'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import ConsultantCV from '@/components/ConsultantCV'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
-import type { Profile, Project, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
+import type { Profile, Project, ProjectAssignment, BeachAssignment, BeachTaskType, VacationRequest } from '@/lib/types'
 
 type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated' | 'beach'
 
@@ -190,12 +190,16 @@ interface PeopleTabProps {
   projects: Project[]
   assignments: ProjectAssignment[]
   beachAssignments: BeachAssignment[]
+  vacations: VacationRequest[]
   onAssignBeach: (consultantId: string, taskType: BeachTaskType, description: string, endDate: string) => void
   onRemoveBeach: (id: string) => void
+  onAddVacation: (consultantId: string, startDate: string, endDate: string, note: string) => void
+  onRemoveVacation: (id: string) => void
 }
 
 export default function PeopleTab({
-  consultants, projects, assignments, beachAssignments, onAssignBeach, onRemoveBeach,
+  consultants, projects, assignments, beachAssignments, vacations,
+  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
@@ -206,6 +210,8 @@ export default function PeopleTab({
     description: '',
     endDate: '',
   })
+  const [vacationTarget, setVacationTarget] = useState<Profile | null>(null)
+  const [vacationForm, setVacationForm] = useState({ startDate: '', endDate: '', note: '' })
 
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
@@ -306,6 +312,17 @@ export default function PeopleTab({
     setBeachTarget(null)
   }
 
+  function openVacationModal(consultant: Profile) {
+    setVacationTarget(consultant)
+    setVacationForm({ startDate: '', endDate: '', note: '' })
+  }
+
+  function submitVacation() {
+    if (!vacationTarget || !vacationForm.startDate || !vacationForm.endDate) return
+    onAddVacation(vacationTarget.id, vacationForm.startDate, vacationForm.endDate, vacationForm.note)
+    setVacationTarget(null)
+  }
+
   return (
     <div>
       {/* Beach task assignment modal */}
@@ -356,6 +373,55 @@ export default function PeopleTab({
               onClick={submitBeachAssignment}
             >
               Asignar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vacation modal */}
+      <Dialog open={!!vacationTarget} onOpenChange={(v) => !v && setVacationTarget(null)}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+            <CalendarOff size={16} className="text-blue-500" />
+            <h2 className="font-semibold text-navy-800 text-sm">Agregar Vacación — {vacationTarget?.name}</h2>
+          </div>
+          <div className="px-5 py-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Fecha inicio</label>
+              <input
+                type="date"
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                value={vacationForm.startDate}
+                onChange={(e) => setVacationForm((f) => ({ ...f, startDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Fecha fin</label>
+              <input
+                type="date"
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                value={vacationForm.endDate}
+                onChange={(e) => setVacationForm((f) => ({ ...f, endDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Nota (opcional)</label>
+              <input
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-navy-400"
+                placeholder="Ej: Vacaciones de mitad de año"
+                value={vacationForm.note}
+                onChange={(e) => setVacationForm((f) => ({ ...f, note: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3 bg-slate-50">
+            <Button variant="outline" size="sm" onClick={() => setVacationTarget(null)}>Cancelar</Button>
+            <Button
+              size="sm"
+              disabled={!vacationForm.startDate || !vacationForm.endDate}
+              onClick={submitVacation}
+            >
+              Guardar
             </Button>
           </div>
         </DialogContent>
@@ -458,6 +524,37 @@ export default function PeopleTab({
                   </button>
                 </div>
               )}
+              {/* Vacations row */}
+              {(() => {
+                const consultantVacations = vacations.filter(v => v.consultant_id === s.consultant.id)
+                return (
+                  <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3 items-center">
+                    {consultantVacations.map((v) => (
+                      <span
+                        key={v.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
+                      >
+                        <CalendarOff size={10} />
+                        <span>{formatDate(v.start_date)} – {formatDate(v.end_date)}</span>
+                        {v.note && <span className="text-blue-400">· {v.note}</span>}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
+                          className="ml-0.5 text-blue-400 hover:text-blue-600 transition-colors"
+                          title="Eliminar vacación"
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openVacationModal(s.consultant) }}
+                      className="inline-flex items-center gap-1 rounded-full border border-dashed border-blue-200 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                    >
+                      + Vacación
+                    </button>
+                  </div>
+                )
+              })()}
             </div>
           ))}
           {filtered.length === 0 && (

@@ -10,7 +10,6 @@ export type Seniority =
   | 'Partner'
   | 'Senior Partner'
 export type ProjectStatus = 'Open' | 'Partially Staffed' | 'Fully Staffed' | 'Active'
-export type VacationStatus = 'Pending' | 'Approved' | 'Rejected'
 export type UserRole = 'consultant' | 'hr_admin'
 
 export interface Profile {
@@ -79,9 +78,6 @@ export interface VacationRequest {
   start_date: string
   end_date: string
   note?: string
-  status: VacationStatus
-  reviewed_by?: string
-  reviewed_at?: string
   created_at: string
 }
 

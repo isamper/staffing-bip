@@ -1,8 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Heart, Calendar, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
+import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import Layout from '@/components/Layout'
@@ -10,31 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ConsultantCV from '@/components/ConsultantCV'
 import {
   mockConsultants,
   mockProjects,
-  mockVacationRequests,
   mockAssignments,
   mockLikes,
 } from '@/lib/mockData'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
-import type { Profile, ProjectLike, VacationRequest } from '@/lib/types'
-
-const vacationSchema = z.object({
-  start_date: z.string().min(1, 'Required'),
-  end_date: z.string().min(1, 'Required'),
-  note: z.string().optional(),
-})
-type VacationForm = z.infer<typeof vacationSchema>
-
-function statusVariant(status: string) {
-  if (status === 'Approved') return 'success'
-  if (status === 'Rejected') return 'destructive'
-  return 'pending'
-}
+import type { Profile, ProjectLike } from '@/lib/types'
 
 type Tab = 'overview' | 'cv' | 'team'
 
@@ -43,16 +25,8 @@ export default function EmployeeDashboard() {
   const [myProfile, setMyProfile] = useState<Profile | null>(authProfile)
   const [tab, setTab] = useState<Tab>('overview')
   const [likes, setLikes] = useState<ProjectLike[]>(mockLikes)
-  const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
   const [teamSearch, setTeamSearch] = useState('')
   const [selectedColleague, setSelectedColleague] = useState<Profile | null>(null)
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<VacationForm>({ resolver: zodResolver(vacationSchema) })
 
   const profile = myProfile
   if (!profile) return null
@@ -74,7 +48,6 @@ export default function EmployeeDashboard() {
   const myProjects = myAssignments
     .map((a) => ({ assignment: a, project: mockProjects.find((p) => p.id === a.project_id)! }))
     .filter((x) => x.project)
-  const myVacations = vacations.filter((v) => v.consultant_id === profile.id)
   const myLikes = likes.filter((l) => l.consultant_id === profile.id).map((l) => l.project_id)
   const openProjects = mockProjects.filter(
     (p) => p.status === 'Open' || p.status === 'Partially Staffed',
@@ -86,22 +59,6 @@ export default function EmployeeDashboard() {
       if (existing) return prev.filter((l) => l.id !== existing.id)
       return [...prev, { id: `l${Date.now()}`, project_id: projectId, consultant_id: profile!.id, created_at: new Date().toISOString() }]
     })
-  }
-
-  function onSubmitVacation(data: VacationForm) {
-    setVacations((prev) => [
-      ...prev,
-      {
-        id: `v${Date.now()}`,
-        consultant_id: profile!.id,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        note: data.note,
-        status: 'Pending',
-        created_at: new Date().toISOString(),
-      },
-    ])
-    reset()
   }
 
   return (
@@ -390,52 +347,6 @@ export default function EmployeeDashboard() {
             </CardContent>
           </Card>
 
-          {/* Vacation request */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Calendar size={15} className="text-bip-red" /> Request Time Off
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmitVacation)} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="start_date">Start date</Label>
-                    <Input id="start_date" type="date" {...register('start_date')} />
-                    {errors.start_date && <p className="text-xs text-red-600">{errors.start_date.message}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="end_date">End date</Label>
-                    <Input id="end_date" type="date" {...register('end_date')} />
-                    {errors.end_date && <p className="text-xs text-red-600">{errors.end_date.message}</p>}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="note">Note (optional)</Label>
-                  <Input id="note" placeholder="e.g. Family vacation" {...register('note')} />
-                </div>
-                <Button type="submit" size="sm">Submit request</Button>
-              </form>
-
-              {myVacations.length > 0 && (
-                <div className="mt-5 space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">My requests</p>
-                  {myVacations.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
-                      <div>
-                        <p className="text-sm font-medium text-navy-800">
-                          {formatDate(v.start_date)} – {formatDate(v.end_date)}
-                        </p>
-                        {v.note && <p className="text-xs text-slate-400">{v.note}</p>}
-                      </div>
-                      <Badge variant={statusVariant(v.status)}>{v.status}</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>}
     </Layout>

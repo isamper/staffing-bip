@@ -30,7 +30,17 @@
       "Bash(gh --version)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Read(//c/Users/isabe/OneDrive/Documents/3. Spring2026/AI Prototyping Bootcamp/**)",
+      "Bash(python -c ' *)",
+      "PowerShell(node --version 2>&1)",
+      "Bash(npm run *)",
+      "Bash(findstr /v \"Bad uncompressed\")",
+      "Bash(node compare-names.mjs)",
+      "Bash(npx vercel *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }

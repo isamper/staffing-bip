@@ -28,6 +28,19 @@ export const SUGGESTED_SKILLS: { category: string; skills: string[] }[] = [
       'RPA',
       'Ciberseguridad',
       'Arquitectura de Datos',
+      'Arquitectura de Sistemas',
+      'Estrategia de TI',
+      'Due Diligence de TI',
+    ],
+  },
+  {
+    category: 'Organización & Operaciones',
+    skills: [
+      'Diseño Organizacional',
+      'Modelo Operativo',
+      'Servicios Compartidos',
+      'Post-fusión e Integración',
+      'Excelencia Operativa',
     ],
   },
   {

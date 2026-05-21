@@ -103,9 +103,7 @@ export function scoreConsultant(
 
   // Vacation conflict (−20)
   let vacationWarning: string | undefined
-  const approved = vacations.filter(
-    (v) => v.consultant_id === consultant.id && v.status === 'Approved',
-  )
+  const approved = vacations.filter((v) => v.consultant_id === consultant.id)
   for (const vac of approved) {
     const vs = new Date(vac.start_date)
     const ve = new Date(vac.end_date)
@@ -113,7 +111,7 @@ export function scoreConsultant(
     const pe = new Date(project.end_date)
     if (vs <= pe && ve >= ps) {
       score -= 20
-      vacationWarning = `Vacation overlap: ${formatDate(vac.start_date)} – ${formatDate(vac.end_date)}`
+      vacationWarning = `Vacaciones: ${formatDate(vac.start_date)} – ${formatDate(vac.end_date)}`
       break
     }
   }
@@ -264,9 +262,7 @@ export function scoreConsultantForPosition(
 
   // Vacation conflict (−20)
   let vacationWarning: string | undefined
-  const approved = vacations.filter(
-    (v) => v.consultant_id === consultant.id && v.status === 'Approved',
-  )
+  const approved = vacations.filter((v) => v.consultant_id === consultant.id)
   for (const vac of approved) {
     const vs = new Date(vac.start_date)
     const ve = new Date(vac.end_date)
