@@ -734,6 +734,64 @@ export const mockAssignments: ProjectAssignment[] = [
   { id: 'a61', project_id: 'p719', consultant_id: 'c49', dedication_percentage: 100, end_date: '2026-05-29', assigned_at: '2026-04-07T00:00:00Z' },
   // ── Politecnico Internacional — Marketing digital ──
   { id: 'a62', project_id: 'p699', consultant_id: 'c63', dedication_percentage: 100, end_date: '2026-06-19', assigned_at: '2026-02-02T00:00:00Z' },
+
+  // ── D1 — ERP Gap Analysis (ended Apr 17) ──
+  { id: 'a63', project_id: 'p703', consultant_id: 'c11', dedication_percentage: 50,  end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a64', project_id: 'p703', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a65', project_id: 'p703', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a66', project_id: 'p703', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
+
+  // ── Aruba Bank — Interim Security Role Fase 2 (ended Apr 3) ──
+  { id: 'a67', project_id: 'p704', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a68', project_id: 'p704', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a69', project_id: 'p704', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a70', project_id: 'p704', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
+
+  // ── PersonalSoft — Estrategia de Negocio (ended Apr 3) ──
+  { id: 'a71', project_id: 'p702', consultant_id: 'c11', dedication_percentage: 50,  end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a72', project_id: 'p702', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a73', project_id: 'p702', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
+  { id: 'a74', project_id: 'p702', consultant_id: 'c48', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
+
+  // ── Autogermana — Consolidación ERP/DMS (ended Mar 17) ──
+  { id: 'a75', project_id: 'p691', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
+  { id: 'a76', project_id: 'p691', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
+  { id: 'a77', project_id: 'p691', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
+
+  // ── Grupo AVAL — Delfos (ended Mar 18) ──
+  { id: 'a78', project_id: 'p690', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a79', project_id: 'p690', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a80', project_id: 'p690', consultant_id: 'c64', dedication_percentage: 100, end_date: '2026-03-18', assigned_at: '2026-01-02T00:00:00Z' },
+
+  // ── Compensar — Implementación Estrategia CIAM (ended Jan 30) ──
+  { id: 'a81', project_id: 'p688', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
+  { id: 'a82', project_id: 'p688', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
+  { id: 'a83', project_id: 'p688', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-13T00:00:00Z' },
+
+  // ── Pacífico Seguros — Revisión del Modelo Comercial (ended Feb 20) ──
+  { id: 'a84', project_id: 'p681', consultant_id: 'c11', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-12T00:00:00Z' },
+  { id: 'a85', project_id: 'p681', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-12T00:00:00Z' },
+
+  // ── Corficolombiana — Kronos Acompañamiento (ended Feb 20) ──
+  { id: 'a86', project_id: 'p668', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a87', project_id: 'p668', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a88', project_id: 'p668', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a89', project_id: 'p668', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a90', project_id: 'p668', consultant_id: 'c48', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a91', project_id: 'p668', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a92', project_id: 'p668', consultant_id: 'c64', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a93', project_id: 'p668', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-02-20', assigned_at: '2026-01-05T00:00:00Z' },
+
+  // ── Kairos — Estrategia de Integración (ended Feb 6) ──
+  { id: 'a94', project_id: 'p604', consultant_id: 'c11', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a95', project_id: 'p604', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a96', project_id: 'p604', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a97', project_id: 'p604', consultant_id: 'c44', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
+  { id: 'a98', project_id: 'p604', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-02-06', assigned_at: '2026-01-02T00:00:00Z' },
+
+  // ── OLCSAL — Gap Analysis ERP (ended Jan 30) ──
+  { id: 'a99',  project_id: 'p594', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' },
+  { id: 'a100', project_id: 'p594', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-01-30', assigned_at: '2026-01-05T00:00:00Z' },
 ]
 
 // ── Historic Kimble enrichment ────────────────────────────────────────────────
