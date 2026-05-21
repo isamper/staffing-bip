@@ -21,7 +21,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const DEMO_SESSION_KEY = 'bench_demo_user'
+// Store only the email — never the full profile object, which goes stale.
+const DEMO_SESSION_KEY = 'bench_demo_email'
 
 function nameToEmail(name: string): string {
   const parts = name
@@ -33,42 +34,42 @@ function nameToEmail(name: string): string {
   return `${parts[0]}.${parts[parts.length - 1]}@bip-group.com`
 }
 
+function profileFromEmail(email: string): Profile | null {
+  // Named admin/HR users first
+  const demoEntry = DEMO_USERS[email as keyof typeof DEMO_USERS]
+  if (demoEntry) return demoEntry.profile
+
+  // Regular consultants matched by firstname.lastname@bip-group.com
+  if (email.endsWith('@bip-group.com')) {
+    return mockConsultants.find((c) => nameToEmail(c.name) === email) ?? null
+  }
+
+  return null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (isDemoMode) {
-      const stored = localStorage.getItem(DEMO_SESSION_KEY)
-      if (stored) {
+      // Migrate any old bench_demo_user key (full profile) to the new email-only key
+      const oldKey = 'bench_demo_user'
+      const oldStored = localStorage.getItem(oldKey)
+      if (oldStored) {
         try {
-          const cached = JSON.parse(stored) as Profile
-          // Re-derive from current mockData using the cached name so stale IDs,
-          // skills, or roles from an older build are never used.
-          const normCached = cached.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+          const oldProfile = JSON.parse(oldStored) as Profile
+          const email = nameToEmail(oldProfile.name)
+          localStorage.setItem(DEMO_SESSION_KEY, email)
+        } catch { /* ignore */ }
+        localStorage.removeItem(oldKey)
+      }
 
-          // 1. Named admin users (DEMO_USERS)
-          const demoEntry = Object.values(DEMO_USERS).find(
-            (u) => u.profile.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() === normCached,
-          )
-          if (demoEntry) {
-            setProfile(demoEntry.profile)
-            localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(demoEntry.profile))
-          } else {
-            // 2. Regular consultant
-            const consultant = mockConsultants.find(
-              (c) => c.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() === normCached,
-            )
-            if (consultant) {
-              setProfile(consultant)
-              localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(consultant))
-            } else {
-              setProfile(cached) // unknown user — keep as-is
-            }
-          }
-        } catch {
-          localStorage.removeItem(DEMO_SESSION_KEY)
-        }
+      const email = localStorage.getItem(DEMO_SESSION_KEY)
+      if (email) {
+        const p = profileFromEmail(email)
+        if (p) setProfile(p)
+        else localStorage.removeItem(DEMO_SESSION_KEY)
       }
       setLoading(false)
       return
@@ -101,22 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isDemoMode) {
       if (password !== 'demo123') return { error: 'Invalid email or password' }
 
-      // Check named admin users first
-      const user = DEMO_USERS[email as keyof typeof DEMO_USERS]
-      if (user) {
-        setProfile(user.profile)
-        localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(user.profile))
+      const p = profileFromEmail(email)
+      if (p) {
+        setProfile(p)
+        localStorage.setItem(DEMO_SESSION_KEY, email) // store email only — never the profile
         return { error: null }
-      }
-
-      // Auto-match any consultant by firstname.lastname@bip-group.com
-      if (email.endsWith('@bip-group.com')) {
-        const consultant = mockConsultants.find((c) => nameToEmail(c.name) === email)
-        if (consultant) {
-          setProfile(consultant)
-          localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(consultant))
-          return { error: null }
-        }
       }
 
       return { error: 'Invalid email or password' }
@@ -148,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isDemoMode) {
       setProfile(null)
       localStorage.removeItem(DEMO_SESSION_KEY)
+      localStorage.removeItem('bench_demo_user') // clean up old key if still present
       return
     }
     await supabase!.auth.signOut()
