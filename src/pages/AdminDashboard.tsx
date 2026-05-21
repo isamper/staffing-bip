@@ -208,8 +208,9 @@ function AssignedMemberRow({
   // Vacation overlap with project
   const ps = new Date(project.start_date)
   const pe = new Date(project.end_date)
+  const now = new Date()
   const vacationWarning = vacations
-    .filter((v) => v.consultant_id === consultant.id)
+    .filter((v) => v.consultant_id === consultant.id && new Date(v.end_date) >= now)
     .find((v) => new Date(v.start_date) <= pe && new Date(v.end_date) >= ps)
   const vacWarningText = vacationWarning
     ? `Vacaciones: ${formatDate(vacationWarning.start_date)} – ${formatDate(vacationWarning.end_date)}`
