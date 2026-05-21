@@ -509,12 +509,23 @@ export default function AdminDashboard() {
   })
   const assignedIds = assignedToSelected.map((a) => a.consultant_id)
 
+  const SENIORITY_RANK: Record<string, number> = {
+    'Senior Partner': 0, 'Partner': 1, 'Director': 2,
+    'Senior Manager': 3, 'Manager': 4,
+    'Senior Associate': 5, 'Associate': 6,
+    'Senior Consultant': 7, 'Consultant': 8, 'Intern': 9,
+  }
+
   const assignedConsultants = assignedIds
     .map((id) => ({
       consultant: consultants.find((c) => c.id === id)!,
       assignment: assignedToSelected.find((a) => a.consultant_id === id)!,
     }))
     .filter((x) => x.consultant)
+    .sort((a, b) =>
+      (SENIORITY_RANK[a.consultant.seniority] ?? 99) -
+      (SENIORITY_RANK[b.consultant.seniority] ?? 99),
+    )
 
   function handleUpdateProjectSkills(projectId: string, skills: string[]) {
     setProjects((prev) =>
