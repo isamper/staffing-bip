@@ -321,6 +321,8 @@ function AssignedMemberRow({
 // ─── localStorage persistence keys ───────────────────────────────────────────
 const KIMBLE_STORAGE_KEY      = 'bench_kimble_result_v1'
 const DEACTIVATED_STORAGE_KEY = 'bench_deactivated_v1'
+const BEACH_STORAGE_KEY       = 'bench_beach_v1'
+const VACATIONS_STORAGE_KEY   = 'bench_vacations_v1'
 
 function loadDeactivatedIds(): Set<string> {
   try {
@@ -328,9 +330,18 @@ function loadDeactivatedIds(): Set<string> {
     return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
   } catch { return new Set() }
 }
-
 function saveDeactivatedIds(ids: Set<string>) {
   try { localStorage.setItem(DEACTIVATED_STORAGE_KEY, JSON.stringify([...ids])) } catch { }
+}
+
+function loadFromStorage<T>(key: string, fallback: T[]): T[] {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) as T[] : fallback
+  } catch { return fallback }
+}
+function saveToStorage<T>(key: string, data: T[]) {
+  try { localStorage.setItem(key, JSON.stringify(data)) } catch { }
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
@@ -340,12 +351,16 @@ export default function AdminDashboard() {
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
-  const [vacations, setVacations] = useState<VacationRequest[]>(mockVacationRequests)
+  const [vacations, setVacations] = useState<VacationRequest[]>(
+    () => loadFromStorage(VACATIONS_STORAGE_KEY, mockVacationRequests),
+  )
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
   const [kimbleModalOpen, setKimbleModalOpen] = useState(false)
   const [lastImport, setLastImport] = useState<string | null>(null)
-  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
+  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>(
+    () => loadFromStorage(BEACH_STORAGE_KEY, []),
+  )
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
@@ -589,21 +604,27 @@ export default function AdminDashboard() {
   }
 
   function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string) {
-    setBeachAssignments((prev) => [
-      ...prev,
-      {
-        id: `beach-${Date.now()}`,
-        consultant_id: consultantId,
-        task_type: taskType,
-        description,
-        end_date: endDate,
-        assigned_at: new Date().toISOString(),
-      },
-    ])
+    const newEntry: BeachAssignment = {
+      id: `beach-${Date.now()}`,
+      consultant_id: consultantId,
+      task_type: taskType,
+      description,
+      end_date: endDate,
+      assigned_at: new Date().toISOString(),
+    }
+    setBeachAssignments((prev) => {
+      const updated = [...prev, newEntry]
+      saveToStorage(BEACH_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleRemoveBeach(id: string) {
-    setBeachAssignments((prev) => prev.filter((b) => b.id !== id))
+    setBeachAssignments((prev) => {
+      const updated = prev.filter((b) => b.id !== id)
+      saveToStorage(BEACH_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleAddVacation(consultantId: string, startDate: string, endDate: string, note: string) {
@@ -615,11 +636,19 @@ export default function AdminDashboard() {
       note: note || undefined,
       created_at: new Date().toISOString(),
     }
-    setVacations((prev) => [...prev, v])
+    setVacations((prev) => {
+      const updated = [...prev, v]
+      saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleRemoveVacation(id: string) {
-    setVacations((prev) => prev.filter((v) => v.id !== id))
+    setVacations((prev) => {
+      const updated = prev.filter((v) => v.id !== id)
+      saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleDeactivate(consultantId: string) {
