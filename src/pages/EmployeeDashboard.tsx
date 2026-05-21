@@ -193,6 +193,35 @@ export default function EmployeeDashboard() {
   }, null)
   const isOnProject = myAssignments.length > 0
 
+  // ── Enrich profile with live Kimble data (annual dedication + industry/areas) ──
+  // The profile from AuthContext has the historic HISTORIC_ENRICHMENT fields,
+  // but the live Kimble import only updates the admin's React state. We read
+  // bench_kimble_result_v1 directly and merge the fields here.
+  const kimbleResult = loadKimbleResult()
+  const enrichedProfile: Profile = (() => {
+    if (!kimbleResult) return profile
+    const normP = normName(profile.name)
+
+    const kimbleName = Object.keys(kimbleResult.consultantDedications).find(
+      (k) => normName(k) === normP,
+    )
+    const pct = kimbleName !== undefined ? kimbleResult.consultantDedications[kimbleName] : undefined
+
+    const areaKey = Object.keys(kimbleResult.consultantAreaData).find(
+      (k) => normName(k) === normP,
+    )
+    const newAreas = areaKey ? kimbleResult.consultantAreaData[areaKey] : null
+
+    return {
+      ...profile,
+      ...(pct !== undefined ? { annual_dedication_pct: pct } : {}),
+      ...(newAreas ? {
+        industry_experience: [...new Set([...(profile.industry_experience ?? []), ...newAreas.industries])],
+        kimble_service_areas: [...new Set([...(profile.kimble_service_areas ?? []), ...newAreas.areas])],
+      } : {}),
+    }
+  })()
+
   const myLikes = likes.filter((l) => l.consultant_id === profile.id).map((l) => l.project_id)
   const openProjects = allProjects.filter(
     (p) => p.status === 'Open' || p.status === 'Partially Staffed',
@@ -283,7 +312,7 @@ export default function EmployeeDashboard() {
       {/* CV Tab */}
       {tab === 'cv' && (
         <ConsultantCV
-          profile={profile}
+          profile={enrichedProfile}
           assignments={allAssignments}
           projects={allProjects}
           onUpdate={async (updated) => {
