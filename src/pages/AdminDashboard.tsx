@@ -336,6 +336,7 @@ const DEACTIVATED_STORAGE_KEY = 'bench_deactivated_v1'
 const BEACH_STORAGE_KEY       = 'bench_beach_v1'
 const VACATIONS_STORAGE_KEY   = 'bench_vacations_v1'
 const ASSIGNMENTS_STORAGE_KEY = 'bench_assignments_v1'
+const PROFILES_STORAGE_KEY    = 'bench_profiles_v1'
 
 function loadDeactivatedIds(): Set<string> {
   try {
@@ -408,6 +409,19 @@ export default function AdminDashboard() {
         prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
       )
     }
+    // 3. Saved CV edits (bio, experience, skills, etc. written by each consultant)
+    try {
+      const savedRaw = localStorage.getItem(PROFILES_STORAGE_KEY)
+      if (savedRaw) {
+        const savedEdits = JSON.parse(savedRaw) as Record<string, Partial<Profile>>
+        const ids = Object.keys(savedEdits)
+        if (ids.length > 0) {
+          setConsultants((prev) =>
+            prev.map((c) => savedEdits[c.id] ? { ...c, ...savedEdits[c.id] } : c),
+          )
+        }
+      }
+    } catch { /* ignore */ }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleKimbleImport(result: KimbleImportResult, opts: { skipAssignments?: boolean } = {}) {

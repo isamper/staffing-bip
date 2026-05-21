@@ -23,6 +23,13 @@ import type { KimbleImportResult } from '@/lib/kimbleParser'
 const normName = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
+/** Return a new object with only the listed keys from `obj`. */
+function pick<T extends object>(obj: T, keys: (keyof T)[]): Partial<T> {
+  const result: Partial<T> = {}
+  for (const k of keys) if (k in obj) result[k] = obj[k]
+  return result
+}
+
 const numericCode = (id: string) => {
   const m = id.match(/(\d+)$/)
   return m ? String(parseInt(m[1], 10)) : id
@@ -121,11 +128,32 @@ function loadAssignments(): ProjectAssignment[] {
   return kimbleAssignments.length > 0 ? kimbleAssignments : mockAssignments
 }
 
+const PROFILES_STORAGE_KEY = 'bench_profiles_v1'
+
+/** Fields a consultant can edit in their CV (persisted to localStorage) */
+const EDITABLE_PROFILE_KEYS: (keyof Profile)[] = [
+  'bio', 'education', 'languages', 'years_of_experience',
+  'certifications', 'experience', 'skills', 'photo_url',
+]
+
+function loadSavedProfileEdits(): Record<string, Partial<Profile>> {
+  try {
+    const raw = localStorage.getItem(PROFILES_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
 function loadConsultants(): Profile[] {
   // 1. Start from mockConsultants (already has HISTORIC_ENRICHMENT data)
   let list: Profile[] = mockConsultants
 
-  // 2. Apply deactivations
+  // 2. Apply saved CV edits (bio, experience, skills, etc. written by each consultant)
+  const savedEdits = loadSavedProfileEdits()
+  if (Object.keys(savedEdits).length > 0) {
+    list = list.map((c) => savedEdits[c.id] ? { ...c, ...savedEdits[c.id] } : c)
+  }
+
+  // 3. Apply deactivations
   try {
     const raw = localStorage.getItem('bench_deactivated_v1')
     const deactivated: Set<string> = raw ? new Set(JSON.parse(raw) as string[]) : new Set()
@@ -221,22 +249,19 @@ export default function EmployeeDashboard() {
   }, null)
   const isOnProject = myAssignments.length > 0
 
-  // ── Enrich profile with live Kimble data ──────────────────────────────────
-  // allConsultants (from loadConsultants) already has HISTORIC_ENRICHMENT +
-  // live Kimble industry/area data merged. Use it as the canonical source for
-  // those read-only Kimble fields so Vista Consultor matches Vista Admin.
-  // We keep `profile` (myProfile) as base for editable CV fields (bio, skills…)
-  // and only add annual_dedication_pct on top from the raw Kimble dedications.
+  // ── Build enrichedProfile: single source of truth for this consultant's CV ─
+  // allConsultants (from loadConsultants) has: HISTORIC_ENRICHMENT + live Kimble
+  // industry/area + saved CV edits (bio, experience, skills, etc.).
+  // We use it as the full base so every view shows the same data, then overlay
+  // the in-session myProfile state (captures unsaved edits during this session)
+  // and add annual_dedication_pct from the raw Kimble dedications map.
   const kimbleResult = loadKimbleResult()
   const enrichedConsultant = allConsultants.find((c) => c.id === consultantId) ?? profile
   const enrichedProfile: Profile = (() => {
-    // Base = myProfile (has user's own edits to bio / skills / etc.)
-    // Override Kimble read-only fields from the enriched consultant list
-    const base: Profile = {
-      ...profile,
-      industry_experience: enrichedConsultant.industry_experience,
-      kimble_service_areas: enrichedConsultant.kimble_service_areas,
-    }
+    // enrichedConsultant has saved edits + Kimble data; myProfile (profile) has
+    // any further in-session edits not yet flushed (they are flushed on every
+    // onUpdate call, so these are effectively always in sync).
+    const base: Profile = { ...enrichedConsultant, ...pick(profile, EDITABLE_PROFILE_KEYS) }
 
     if (!kimbleResult) return base
     const normP = normName(profile.name)
@@ -342,6 +367,13 @@ export default function EmployeeDashboard() {
           projects={allProjects}
           onUpdate={async (updated) => {
             setMyProfile(updated)
+            // Persist editable fields so Vista Admin and Equipo tab stay in sync
+            try {
+              const raw = localStorage.getItem(PROFILES_STORAGE_KEY) ?? '{}'
+              const saved = JSON.parse(raw) as Record<string, Partial<Profile>>
+              saved[updated.id] = pick(updated, EDITABLE_PROFILE_KEYS) as Partial<Profile>
+              localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(saved))
+            } catch { /* storage full — not critical */ }
             if (!isDemoMode && supabase) {
               await supabase.from('profiles').update({
                 name: updated.name,
