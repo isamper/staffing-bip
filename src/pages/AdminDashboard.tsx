@@ -423,6 +423,7 @@ export default function AdminDashboard() {
   )
 
   const isActiveProject = selectedProject?.status === 'Active'
+  const isEndedProject = selectedProject ? new Date(selectedProject.end_date) < today : false
 
   // Per-position suggestions using the same scorer as Staffing Plan
   const positionSuggestions =
@@ -718,13 +719,42 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* ── Required Skills (editable) ── */}
-                  <SkillsEditor
-                    skills={selectedProject.skills_required}
-                    onChange={(skills) => handleUpdateProjectSkills(selectedProject.id, skills)}
-                  />
+                  {/* ── Required Skills (editable) — hidden for ended projects ── */}
+                  {!isEndedProject && (
+                    <SkillsEditor
+                      skills={selectedProject.skills_required}
+                      onChange={(skills) => handleUpdateProjectSkills(selectedProject.id, skills)}
+                    />
+                  )}
 
-                  {isActiveProject ? (
+                  {isEndedProject ? (
+                    /* ── Ended project: read-only team list ── */
+                    <div>
+                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+                        Equipo ({assignedConsultants.length})
+                      </p>
+                      {assignedConsultants.length === 0 ? (
+                        <p className="text-sm text-slate-400">Sin asignaciones registradas.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {assignedConsultants.map(({ consultant, assignment }) => (
+                            <div key={consultant.id} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white p-3">
+                              <Avatar className="h-9 w-9 shrink-0">
+                                <AvatarFallback className="text-xs">{getInitials(consultant.name)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-navy-800">{consultant.name}</p>
+                                <p className="text-xs text-slate-500">{consultant.role_title} · {consultant.seniority}</p>
+                              </div>
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 shrink-0">
+                                {assignment.dedication_percentage}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : isActiveProject ? (
                     /* ── Active project: team + over-dedication ── */
                     <div>
                       <div className="mb-3 flex items-center justify-between">
@@ -860,8 +890,8 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Consultant directory — hidden for active projects */}
-              {!isActiveProject && <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+              {/* Consultant directory — only for upcoming/open projects */}
+              {!isActiveProject && !isEndedProject && <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Search size={15} className="text-slate-400" />
                   <Input
