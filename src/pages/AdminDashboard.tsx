@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search, Heart,
   AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus,
@@ -339,16 +339,6 @@ export default function AdminDashboard() {
   const [addDedication, setAddDedication] = useState(100)
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
-
-  // Ref used to scroll the detail panel into view when a project is selected
-  const detailPanelRef = useRef<HTMLDivElement>(null)
-
-  // Scroll to the detail panel whenever a project is selected
-  useEffect(() => {
-    if (selectedProject) {
-      detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [selectedProject])
 
   // On mount: re-apply the last Kimble import from localStorage so data persists across reloads
   useEffect(() => {
@@ -768,8 +758,8 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Right panel */}
-            <div className="lg:col-span-2" ref={detailPanelRef}>
+            {/* Right panel — sticky so it stays visible while the left panel scrolls */}
+            <div className="lg:col-span-2 lg:sticky lg:top-4 self-start max-h-[calc(100vh-5rem)] overflow-y-auto space-y-4">
               {selectedProject ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
                   {/* Header */}
@@ -823,133 +813,145 @@ export default function AdminDashboard() {
                         </div>
                       )}
                     </div>
-                  ) : isActiveProject ? (
-                    /* ── Active project: team + over-dedication ── */
-                    <div>
-                      <div className="mb-3 flex items-center justify-between">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                          Assigned Team ({assignedConsultants.length})
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 gap-1.5 text-xs"
-                            onClick={() => setShowAddModal(true)}
-                          >
-                            <UserPlus size={13} /> Agregar persona
-                          </Button>
-                          {assignedConsultants.some(({ consultant }) => {
-                            const total = getTotalDedication(consultant.id, assignments, today)
-                            return total > (MAX_CARGABILITY[consultant.seniority] ?? 100)
-                          }) && (
-                            <span className="flex items-center gap-1 text-xs text-red-600">
-                              <AlertTriangle size={12} />
-                              Over-dedicated members
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {assignedConsultants.length === 0 ? (
-                        <p className="text-sm text-slate-400">No assignments recorded.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {assignedConsultants.map(({ consultant, assignment }) => {
-                            const total = getTotalDedication(consultant.id, assignments, today)
-                            const max = MAX_CARGABILITY[consultant.seniority] ?? 100
-                            return (
-                              <AssignedMemberRow
-                                key={consultant.id}
-                                consultant={consultant}
-                                assignment={assignment}
-                                totalDedication={total}
-                                maxDedication={max}
-                                project={selectedProject}
-                                assignments={assignments}
-                                vacations={vacations}
-                                replacementsFor={replacementsFor}
-                                onToggleReplacements={toggleReplacements}
-                              />
-                            )
-                          })}
+                  ) : (
+                    /* ── Non-ended project: always show team if there are assignments,
+                           plus position suggestions for Open / Partially Staffed ── */
+                    <div className="space-y-6">
+
+                      {/* Team section — shown whenever there are confirmed assignments */}
+                      {assignedConsultants.length > 0 && (
+                        <div>
+                          <div className="mb-3 flex items-center justify-between">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                              Assigned Team ({assignedConsultants.length})
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1.5 text-xs"
+                                onClick={() => setShowAddModal(true)}
+                              >
+                                <UserPlus size={13} /> Agregar persona
+                              </Button>
+                              {assignedConsultants.some(({ consultant }) => {
+                                const total = getTotalDedication(consultant.id, assignments, today)
+                                return total > (MAX_CARGABILITY[consultant.seniority] ?? 100)
+                              }) && (
+                                <span className="flex items-center gap-1 text-xs text-red-600">
+                                  <AlertTriangle size={12} />
+                                  Over-dedicated members
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {assignedConsultants.map(({ consultant, assignment }) => {
+                              const total = getTotalDedication(consultant.id, assignments, today)
+                              const max = MAX_CARGABILITY[consultant.seniority] ?? 100
+                              return (
+                                <AssignedMemberRow
+                                  key={consultant.id}
+                                  consultant={consultant}
+                                  assignment={assignment}
+                                  totalDedication={total}
+                                  maxDedication={max}
+                                  project={selectedProject}
+                                  assignments={assignments}
+                                  vacations={vacations}
+                                  replacementsFor={replacementsFor}
+                                  onToggleReplacements={toggleReplacements}
+                                />
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    /* ── Upcoming project: per-position suggestions ── */
-                    <div className="space-y-5">
-                      {positionSuggestions.map(({ position, results }, pi) => (
-                        <div key={position?.id ?? 'general'}>
-                          {/* Position header */}
-                          {position && (
-                            <div className="mb-2 flex items-center gap-2">
-                              <span className="text-sm font-medium text-blue-800">{position.role}</span>
-                              <Badge variant="open" className="text-xs">{position.seniority}</Badge>
-                            </div>
-                          )}
-                          {!position && (
-                            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-                              AI Match Suggestions
-                            </p>
-                          )}
 
-                          {/* Suggestions for this position */}
-                          {results.length === 0 ? (
-                            <p className="text-sm text-slate-400">No hay candidatos disponibles.</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {results.map((result) => {
-                                const alreadyAssigned = assignedIds.includes(result.consultant.id)
-                                const activeBeach = beachAssignments.filter(
-                                  (b) => b.consultant_id === result.consultant.id && new Date(b.end_date) >= today,
-                                )
-                                return (
-                                  <div
-                                    key={result.consultant.id}
-                                    className="flex items-start gap-3 rounded-md border border-slate-100 p-3"
-                                  >
-                                    <Avatar className="h-9 w-9 shrink-0">
-                                      <AvatarFallback className="text-xs">
-                                        {getInitials(result.consultant.name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <p className="font-medium text-navy-800">{result.consultant.name}</p>
-                                        {result.hasLiked && <Heart size={13} className="fill-bip-red text-bip-red" />}
-                                      </div>
-                                      <p className="text-xs text-slate-500">{result.reason}</p>
-                                      {result.vacationWarning && (
-                                        <p className="mt-0.5 text-xs text-amber-600">⚠ {result.vacationWarning}</p>
-                                      )}
-                                      {activeBeach.length > 0 && (
-                                        <p className="mt-0.5 text-xs text-amber-600">
-                                          ⚠ En playa: {activeBeach.map((b) => `${b.task_type} — ${b.description}`).join('; ')}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex shrink-0 flex-col items-end gap-2">
-                                      <span className="text-sm font-bold text-navy-800">{result.score}</span>
-                                      {alreadyAssigned ? (
-                                        <Badge variant="success" className="text-xs">Assigned</Badge>
-                                      ) : (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="text-xs h-7"
-                                          onClick={() => handleAssign(result.consultant.id, selectedProject.id)}
-                                        >
-                                          Assign
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
+                      {/* Add-person CTA when there are no assignments yet */}
+                      {assignedConsultants.length === 0 && isActiveProject && (
+                        <div className="flex flex-col items-center gap-2 py-4">
+                          <p className="text-sm text-slate-400">No assignments recorded.</p>
+                          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setShowAddModal(true)}>
+                            <UserPlus size={13} /> Agregar persona
+                          </Button>
                         </div>
-                      ))}
+                      )}
+
+                      {/* Position suggestions — shown for Open / Partially Staffed projects */}
+                      {!isActiveProject && (
+                        <div className="space-y-5">
+                          {positionSuggestions.map(({ position, results }, pi) => (
+                            <div key={position?.id ?? 'general'}>
+                              {position && (
+                                <div className="mb-2 flex items-center gap-2">
+                                  <span className="text-sm font-medium text-blue-800">{position.role}</span>
+                                  <Badge variant="open" className="text-xs">{position.seniority}</Badge>
+                                </div>
+                              )}
+                              {!position && (
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                                  AI Match Suggestions
+                                </p>
+                              )}
+                              {results.length === 0 ? (
+                                <p className="text-sm text-slate-400">No hay candidatos disponibles.</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {results.map((result) => {
+                                    const alreadyAssigned = assignedIds.includes(result.consultant.id)
+                                    const activeBeach = beachAssignments.filter(
+                                      (b) => b.consultant_id === result.consultant.id && new Date(b.end_date) >= today,
+                                    )
+                                    return (
+                                      <div
+                                        key={result.consultant.id}
+                                        className="flex items-start gap-3 rounded-md border border-slate-100 p-3"
+                                      >
+                                        <Avatar className="h-9 w-9 shrink-0">
+                                          <AvatarFallback className="text-xs">
+                                            {getInitials(result.consultant.name)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className="font-medium text-navy-800">{result.consultant.name}</p>
+                                            {result.hasLiked && <Heart size={13} className="fill-bip-red text-bip-red" />}
+                                          </div>
+                                          <p className="text-xs text-slate-500">{result.reason}</p>
+                                          {result.vacationWarning && (
+                                            <p className="mt-0.5 text-xs text-amber-600">⚠ {result.vacationWarning}</p>
+                                          )}
+                                          {activeBeach.length > 0 && (
+                                            <p className="mt-0.5 text-xs text-amber-600">
+                                              ⚠ En playa: {activeBeach.map((b) => `${b.task_type} — ${b.description}`).join('; ')}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="flex shrink-0 flex-col items-end gap-2">
+                                          <span className="text-sm font-bold text-navy-800">{result.score}</span>
+                                          {alreadyAssigned ? (
+                                            <Badge variant="success" className="text-xs">Assigned</Badge>
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="text-xs h-7"
+                                              onClick={() => handleAssign(result.consultant.id, selectedProject.id)}
+                                            >
+                                              Assign
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -960,7 +962,7 @@ export default function AdminDashboard() {
               )}
 
               {/* Consultant directory — only for upcoming/open projects */}
-              {!isActiveProject && !isEndedProject && <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5">
+              {!isActiveProject && !isEndedProject && <div className="rounded-lg border border-slate-200 bg-white p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Search size={15} className="text-slate-400" />
                   <Input
