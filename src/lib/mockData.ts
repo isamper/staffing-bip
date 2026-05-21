@@ -914,6 +914,9 @@ export const DEMO_USERS = {
     profile: {
       ...mockConsultants.find((c) => c.id === 'c7')!,
       user_role: 'hr_admin' as const,
+      // Explicitly set here so the fields are guaranteed regardless of mutation ordering
+      industry_experience: ['Energy & Utilities', 'Financial Services', 'Manufacturing', 'Other', 'Transportation'],
+      kimble_service_areas: ['Advisory Digital', 'Business Advisory', 'Cyber Security', 'Strategy & Innovation', 'Technology Advisory'],
     },
   },
   'martha.martinez@bip-group.com': {

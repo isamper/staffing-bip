@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
@@ -138,6 +138,13 @@ type Tab = 'overview' | 'cv' | 'team'
 export default function EmployeeDashboard() {
   const { profile: authProfile } = useAuth()
   const [myProfile, setMyProfile] = useState<Profile | null>(authProfile)
+
+  // Keep myProfile in sync with authProfile (handles cases where auth resolves
+  // after the component first mounts, e.g. on hard refresh)
+  useEffect(() => {
+    if (authProfile) setMyProfile(authProfile)
+  }, [authProfile])
+
   const [tab, setTab] = useState<Tab>('overview')
   const [likes, setLikes] = useState<ProjectLike[]>(mockLikes)
   const [teamSearch, setTeamSearch] = useState('')
