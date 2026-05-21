@@ -187,6 +187,8 @@ type Tab = 'overview' | 'cv' | 'team'
 export default function EmployeeDashboard() {
   const { profile: authProfile } = useAuth()
   const [myProfile, setMyProfile] = useState<Profile | null>(authProfile)
+  const [cvDirty, setCvDirty] = useState(false)
+  const [cvSaved, setCvSaved] = useState(false)
 
   // Keep myProfile in sync with authProfile (handles cases where auth resolves
   // after the component first mounts, e.g. on hard refresh)
@@ -285,6 +287,20 @@ export default function EmployeeDashboard() {
     })
   }
 
+  /** Persist current myProfile edits to localStorage so all views update. */
+  function saveCV() {
+    if (!myProfile) return
+    try {
+      const raw = localStorage.getItem(PROFILES_STORAGE_KEY) ?? '{}'
+      const saved = JSON.parse(raw) as Record<string, Partial<Profile>>
+      saved[myProfile.id] = pick(myProfile, EDITABLE_PROFILE_KEYS) as Partial<Profile>
+      localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(saved))
+    } catch { /* storage full */ }
+    setCvDirty(false)
+    setCvSaved(true)
+    setTimeout(() => setCvSaved(false), 2500)
+  }
+
   return (
     <Layout>
       <div className="mb-5 flex items-center justify-between">
@@ -361,35 +377,35 @@ export default function EmployeeDashboard() {
 
       {/* CV Tab */}
       {tab === 'cv' && (
-        <ConsultantCV
-          profile={enrichedProfile}
-          assignments={allAssignments}
-          projects={allProjects}
-          onUpdate={async (updated) => {
-            setMyProfile(updated)
-            // Persist editable fields so Vista Admin and Equipo tab stay in sync
-            try {
-              const raw = localStorage.getItem(PROFILES_STORAGE_KEY) ?? '{}'
-              const saved = JSON.parse(raw) as Record<string, Partial<Profile>>
-              saved[updated.id] = pick(updated, EDITABLE_PROFILE_KEYS) as Partial<Profile>
-              localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(saved))
-            } catch { /* storage full — not critical */ }
-            if (!isDemoMode && supabase) {
-              await supabase.from('profiles').update({
-                name: updated.name,
-                role_title: updated.role_title,
-                seniority: updated.seniority,
-                skills: updated.skills,
-                bio: updated.bio,
-                education: updated.education,
-                languages: updated.languages,
-                years_of_experience: updated.years_of_experience,
-                certifications: updated.certifications,
-                experience: updated.experience,
-              }).eq('id', updated.id)
-            }
-          }}
-        />
+        <div>
+          {/* Save bar — visible only when there are unsaved changes */}
+          {(cvDirty || cvSaved) && (
+            <div className={`mb-4 flex items-center justify-between rounded-lg border px-4 py-2.5 transition-colors ${cvSaved ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+              <p className={`text-sm font-medium ${cvSaved ? 'text-green-700' : 'text-amber-700'}`}>
+                {cvSaved ? '✓ CV guardado — todos los vistas están actualizadas' : 'Tienes cambios sin guardar'}
+              </p>
+              {cvDirty && (
+                <button
+                  onClick={saveCV}
+                  className="ml-4 rounded-lg bg-navy-800 px-4 py-1.5 text-sm font-semibold text-white hover:bg-navy-700 transition-colors"
+                >
+                  Guardar CV
+                </button>
+              )}
+            </div>
+          )}
+          <ConsultantCV
+            profile={enrichedProfile}
+            assignments={allAssignments}
+            projects={allProjects}
+            onUpdate={(updated) => {
+              // Update in-memory only — user must click "Guardar CV" to persist
+              setMyProfile(updated)
+              setCvDirty(true)
+              setCvSaved(false)
+            }}
+          />
+        </div>
       )}
 
       {/* Equipo Tab */}
