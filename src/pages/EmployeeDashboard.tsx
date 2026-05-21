@@ -101,19 +101,24 @@ function loadProjects(): Project[] {
 }
 
 function loadAssignments(): ProjectAssignment[] {
-  // 1. Prefer fully-persisted state (includes manual assignments from admin)
+  // Always re-derive Kimble assignments from the stored result — these are
+  // authoritative for who is actually staffed. Stale bench_assignments_v1
+  // data (e.g. written from mockData before Kimble was imported) cannot shadow them.
+  const result = loadKimbleResult()
+  const kimbleAssignments = result ? kimbleToAssignments(result) : []
+
+  // Layer manually-added assignments on top (IDs that don't start with "kimble-")
   try {
     const raw = localStorage.getItem('bench_assignments_v1')
-    if (raw) return JSON.parse(raw) as ProjectAssignment[]
+    if (raw) {
+      const persisted = JSON.parse(raw) as ProjectAssignment[]
+      const manualOnly = persisted.filter((a) => !a.id.startsWith('kimble-'))
+      return [...kimbleAssignments, ...manualOnly]
+    }
   } catch { /* ignore */ }
 
-  // 2. Fall back: derive directly from the stored Kimble result so the employee
-  //    view works even if the admin dashboard hasn't re-mounted yet this session.
-  const result = loadKimbleResult()
-  if (result) return kimbleToAssignments(result)
-
-  // 3. Last resort: static mock data
-  return mockAssignments
+  // If we have Kimble data, return it; otherwise fall back to static mock data
+  return kimbleAssignments.length > 0 ? kimbleAssignments : mockAssignments
 }
 
 function loadConsultants(): Profile[] {
