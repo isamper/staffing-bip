@@ -184,30 +184,17 @@ function TagEditor({
 
 // ── Experience Editor ─────────────────────────────────────────────────────────
 
-function ExperienceEditor({
-  entries, onUpdate,
+// Defined at module level so its identity is stable across renders — avoids
+// React unmounting/remounting the inputs on every keystroke (focus loss bug).
+function EntryForm({
+  draft, setDraft, onSave, onCancel,
 }: {
-  entries: ExperienceEntry[]; onUpdate: (e: ExperienceEntry[]) => void
+  draft: ExperienceEntry
+  setDraft: React.Dispatch<React.SetStateAction<ExperienceEntry>>
+  onSave: () => void
+  onCancel: () => void
 }) {
-  const [adding, setAdding] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const blank = (): ExperienceEntry => ({ id: `exp-${Date.now()}`, title: '', client: '', period: '', description: '' })
-  const [draft, setDraft] = useState<ExperienceEntry>(blank())
-
-  const save = (entry: ExperienceEntry) => {
-    if (!entry.title.trim()) return
-    const exists = entries.find(e => e.id === entry.id)
-    onUpdate(exists ? entries.map(e => e.id === entry.id ? entry : e) : [...entries, entry])
-    setAdding(false)
-    setEditingId(null)
-    setDraft(blank())
-  }
-
-  const remove = (id: string) => onUpdate(entries.filter(e => e.id !== id))
-
-  const startEdit = (entry: ExperienceEntry) => { setDraft({ ...entry }); setEditingId(entry.id) }
-
-  const EntryForm = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+  return (
     <div className="rounded-lg border border-navy-200 bg-navy-50/40 p-3 space-y-2">
       <input
         className="w-full rounded border border-slate-200 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400"
@@ -242,13 +229,37 @@ function ExperienceEditor({
       </div>
     </div>
   )
+}
+
+function ExperienceEditor({
+  entries, onUpdate,
+}: {
+  entries: ExperienceEntry[]; onUpdate: (e: ExperienceEntry[]) => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const blank = (): ExperienceEntry => ({ id: `exp-${Date.now()}`, title: '', client: '', period: '', description: '' })
+  const [draft, setDraft] = useState<ExperienceEntry>(blank())
+
+  const save = (entry: ExperienceEntry) => {
+    if (!entry.title.trim()) return
+    const exists = entries.find(e => e.id === entry.id)
+    onUpdate(exists ? entries.map(e => e.id === entry.id ? entry : e) : [...entries, entry])
+    setAdding(false)
+    setEditingId(null)
+    setDraft(blank())
+  }
+
+  const remove = (id: string) => onUpdate(entries.filter(e => e.id !== id))
+
+  const startEdit = (entry: ExperienceEntry) => { setDraft({ ...entry }); setEditingId(entry.id) }
 
   return (
     <div className="space-y-3">
       {entries.map((entry) => (
         <div key={entry.id}>
           {editingId === entry.id ? (
-            <EntryForm onSave={() => save(draft)} onCancel={() => setEditingId(null)} />
+            <EntryForm draft={draft} setDraft={setDraft} onSave={() => save(draft)} onCancel={() => setEditingId(null)} />
           ) : (
             <div className="group flex gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
               <div className="w-1 shrink-0 rounded-full bg-navy-600 mt-0.5" />
@@ -275,7 +286,7 @@ function ExperienceEditor({
       ))}
 
       {adding ? (
-        <EntryForm onSave={() => save(draft)} onCancel={() => { setAdding(false); setDraft(blank()) }} />
+        <EntryForm draft={draft} setDraft={setDraft} onSave={() => save(draft)} onCancel={() => { setAdding(false); setDraft(blank()) }} />
       ) : (
         <button
           onClick={() => { setDraft(blank()); setAdding(true) }}
