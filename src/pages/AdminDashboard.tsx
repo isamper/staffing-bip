@@ -501,10 +501,12 @@ export default function AdminDashboard() {
 
   const assignedToSelected = assignments.filter((a) => {
     if (a.project_id !== selectedProject?.id) return false
-    // Only show consultants who are on the project TODAY:
-    // their window must have started already and not yet ended.
-    if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
-    if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
+    // For ended projects show everyone ever assigned (historical view).
+    // For active/upcoming projects show only who is staffed TODAY.
+    if (!isEndedProject) {
+      if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+      if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
+    }
     return true
   })
   const assignedIds = assignedToSelected.map((a) => a.consultant_id)
