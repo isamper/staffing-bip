@@ -605,6 +605,12 @@ export default function AdminDashboard() {
     setVacations((prev) => prev.filter((v) => v.id !== id))
   }
 
+  function handleDeactivate(consultantId: string) {
+    setConsultants((prev) =>
+      prev.map((c) => c.id === consultantId ? { ...c, is_active: false } : c),
+    )
+  }
+
   function toggleReplacements(consultantId: string) {
     setReplacementsFor((prev) => (prev === consultantId ? null : consultantId))
   }
@@ -1030,6 +1036,7 @@ export default function AdminDashboard() {
             onRemoveBeach={handleRemoveBeach}
             onAddVacation={handleAddVacation}
             onRemoveVacation={handleRemoveVacation}
+            onDeactivate={handleDeactivate}
           />
         </TabsContent>
 

@@ -17,7 +17,7 @@ interface ProjectInfo {
   name: string
   dedication: number
   endDate: string
-  assignedAt: string
+  startDate: string   // when the consultant started on this project (for tenure badge)
 }
 
 interface ConsultantStats {
@@ -95,7 +95,7 @@ function DedicationBar({ value, max }: { value: number; max: number }) {
   )
 }
 
-function ConsultantRow({ stats, onClick, onRemoveVacation }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void }) {
+function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void; onDeactivate: (id: string) => void }) {
   const { consultant, totalDedication, maxDedication, projectsInfo } = stats
   return (
     <div
@@ -123,7 +123,7 @@ function ConsultantRow({ stats, onClick, onRemoveVacation }: { stats: Consultant
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {projectsInfo.map((p, i) => {
-              const months = Math.floor((Date.now() - new Date(p.assignedAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+              const months = Math.floor((Date.now() - new Date(p.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
               const tenureColor = months > 12
                 ? 'bg-red-100 text-red-700 border-red-200'
                 : months >= 6
@@ -189,12 +189,24 @@ function ConsultantRow({ stats, onClick, onRemoveVacation }: { stats: Consultant
         )}
         {consultant.annual_dedication_pct !== undefined && (
           <p className="text-xs text-slate-400">
-            Anual Kimble:{' '}
+            Cargabilidad 2026:{' '}
             <span className={`font-semibold ${consultant.annual_dedication_pct > 80 ? 'text-bip-red' : 'text-navy-700'}`}>
               {consultant.annual_dedication_pct}%
             </span>
           </p>
         )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            if (window.confirm(`¿Dar de baja a ${consultant.name}? Dejará de aparecer en la plataforma.`)) {
+              onDeactivate(consultant.id)
+            }
+          }}
+          className="mt-1 text-xs text-slate-300 hover:text-red-500 transition-colors"
+          title="Dar de baja"
+        >
+          Dar de baja
+        </button>
         <p className="text-xs text-slate-400">
           {isAvailableNow(consultant.available_from)
             ? 'Available now'
@@ -220,11 +232,12 @@ interface PeopleTabProps {
   onRemoveBeach: (id: string) => void
   onAddVacation: (consultantId: string, startDate: string, endDate: string, note: string) => void
   onRemoveVacation: (id: string) => void
+  onDeactivate: (consultantId: string) => void
 }
 
 export default function PeopleTab({
   consultants, projects, assignments, beachAssignments, vacations,
-  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation,
+  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
@@ -257,7 +270,14 @@ export default function PeopleTab({
         .map((a) => {
           const proj = projects.find((p) => p.id === a.project_id)
           return proj
-            ? { name: proj.name, dedication: a.dedication_percentage, endDate: a.end_date ?? proj.end_date, assignedAt: a.assigned_at }
+            ? {
+                name: proj.name,
+                dedication: a.dedication_percentage,
+                endDate: a.end_date ?? proj.end_date,
+                // Use the assignment's own start date (from Kimble) so tenure is accurate.
+                // Fall back to the project start date if not available.
+                startDate: a.start_date ?? proj.start_date,
+              }
             : null
         })
         .filter((x): x is ProjectInfo => x !== null)
@@ -512,7 +532,7 @@ export default function PeopleTab({
         <div className="space-y-2">
           {filtered.map((s) => (
             <div key={s.consultant.id}>
-              <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} onRemoveVacation={onRemoveVacation} />
+              <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} onRemoveVacation={onRemoveVacation} onDeactivate={onDeactivate} />
               {/* Beach tasks row */}
               {(s.activeBeachTasks.length > 0 || s.pastBeachTasks.length > 0 || s.isOnBeach) && (
                 <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
