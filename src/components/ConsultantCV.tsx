@@ -78,7 +78,7 @@ function EditableText({
             value={draft}
             rows={4}
             autoFocus
-            onChange={e => setDraft(e.target.value)}
+            onChange={e => { setDraft(e.target.value); onSave(e.target.value) }}
             onBlur={commit}
             onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); cancel() } }}
           />
@@ -87,7 +87,7 @@ function EditableText({
             className={`flex-1 rounded border border-navy-300 px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-navy-400 ${inputCls}`}
             value={draft}
             autoFocus
-            onChange={e => setDraft(e.target.value)}
+            onChange={e => { setDraft(e.target.value); onSave(e.target.value) }}
             onBlur={commit}
             onKeyDown={e => {
               if (e.key === 'Enter')  { e.preventDefault(); commit() }
