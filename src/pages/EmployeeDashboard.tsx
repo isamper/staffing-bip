@@ -15,8 +15,42 @@ import {
   mockAssignments,
   mockLikes,
 } from '@/lib/mockData'
-import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
-import type { Profile, ProjectLike } from '@/lib/types'
+import { getInitials, formatDate } from '@/lib/utils'
+import type { Profile, Project, ProjectAssignment, ProjectLike } from '@/lib/types'
+
+// ─── read the same localStorage keys the admin dashboard writes ───────────────
+function loadFromStorage<T>(key: string, fallback: T[]): T[] {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T[]) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function loadProjects(): Project[] {
+  try {
+    const raw = localStorage.getItem('bench_kimble_result_v1')
+    if (raw) return (JSON.parse(raw) as { projects: Project[] }).projects
+  } catch { /* ignore */ }
+  return mockProjects
+}
+
+function loadAssignments(): ProjectAssignment[] {
+  return loadFromStorage<ProjectAssignment>('bench_assignments_v1', mockAssignments)
+}
+
+function loadConsultants(): Profile[] {
+  // Deactivations are the only persistent change to profiles
+  try {
+    const raw = localStorage.getItem('bench_deactivated_v1')
+    const deactivated: Set<string> = raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+    if (deactivated.size === 0) return mockConsultants
+    return mockConsultants.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c)
+  } catch {
+    return mockConsultants
+  }
+}
 
 type Tab = 'overview' | 'cv' | 'team'
 
@@ -31,25 +65,47 @@ export default function EmployeeDashboard() {
   const profile = myProfile
   if (!profile) return null
 
+  // ── Real data from localStorage (same source as admin dashboard) ──
+  const allProjects   = loadProjects()
+  const allAssignments = loadAssignments()
+  const allConsultants = loadConsultants()
+
   const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
   const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000)
 
+  // All assignments for this consultant
+  const myAllAssignments = allAssignments.filter((a) => a.consultant_id === profile.id)
+
+  // Currently active assignments — same date filter as admin Projects tab
+  const myAssignments = myAllAssignments.filter((a) => {
+    if (a.end_date && a.end_date < todayStr) return false
+    if (a.start_date && a.start_date > todayStr) return false
+    return true
+  })
+
+  const myProjects = myAssignments
+    .map((a) => ({ assignment: a, project: allProjects.find((p) => p.id === a.project_id)! }))
+    .filter((x) => x.project)
+
   // Projects ended in the last 90 days → prompt to update CV
-  const recentlyEndedProjects = mockAssignments
-    .filter((a) => a.consultant_id === profile.id)
-    .map((a) => mockProjects.find((p) => p.id === a.project_id))
+  const recentlyEndedProjects = myAllAssignments
+    .map((a) => allProjects.find((p) => p.id === a.project_id))
     .filter((p): p is NonNullable<typeof p> => {
       if (!p) return false
       const end = new Date(p.end_date)
       return end < today && end >= ninetyDaysAgo
     })
 
-  const myAssignments = mockAssignments.filter((a) => a.consultant_id === profile.id)
-  const myProjects = myAssignments
-    .map((a) => ({ assignment: a, project: mockProjects.find((p) => p.id === a.project_id)! }))
-    .filter((x) => x.project)
+  // Availability derived from real active assignments (not the static profile field)
+  const latestActiveEnd = myAssignments.reduce<string | null>((max, a) => {
+    if (!a.end_date) return max
+    return max === null || a.end_date > max ? a.end_date : max
+  }, null)
+  const isOnProject = myAssignments.length > 0
+
   const myLikes = likes.filter((l) => l.consultant_id === profile.id).map((l) => l.project_id)
-  const openProjects = mockProjects.filter(
+  const openProjects = allProjects.filter(
     (p) => p.status === 'Open' || p.status === 'Partially Staffed',
   )
 
@@ -106,8 +162,8 @@ export default function EmployeeDashboard() {
             </div>
             <ConsultantCV
               profile={selectedColleague}
-              assignments={mockAssignments}
-              projects={mockProjects}
+              assignments={allAssignments}
+              projects={allProjects}
               readOnly
             />
           </div>
@@ -139,8 +195,8 @@ export default function EmployeeDashboard() {
       {tab === 'cv' && (
         <ConsultantCV
           profile={profile}
-          assignments={mockAssignments}
-          projects={mockProjects}
+          assignments={allAssignments}
+          projects={allProjects}
           onUpdate={async (updated) => {
             setMyProfile(updated)
             if (!isDemoMode && supabase) {
@@ -174,7 +230,7 @@ export default function EmployeeDashboard() {
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {mockConsultants
+            {allConsultants
               .filter((c) =>
                 c.is_active &&
                 (c.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
@@ -281,13 +337,17 @@ export default function EmployeeDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isAvailableNow(profile.available_from) ? (
-                <Badge variant="success">Available now</Badge>
+              {isOnProject ? (
+                <div>
+                  <Badge variant="active">On Project</Badge>
+                  {latestActiveEnd && (
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Until {formatDate(latestActiveEnd)}
+                    </p>
+                  )}
+                </div>
               ) : (
-                <p className="text-sm text-slate-600">
-                  Available from{' '}
-                  <span className="font-medium">{formatDate(profile.available_from)}</span>
-                </p>
+                <Badge variant="success">Available now</Badge>
               )}
             </CardContent>
           </Card>
