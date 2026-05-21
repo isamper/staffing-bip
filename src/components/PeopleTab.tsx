@@ -550,7 +550,7 @@ export default function PeopleTab({
                       onClick={(e) => { e.stopPropagation(); openVacationModal(s.consultant) }}
                       className="inline-flex items-center gap-1 rounded-full border border-dashed border-blue-200 px-2 py-0.5 text-xs text-blue-400 hover:border-blue-400 hover:text-blue-600 transition-colors"
                     >
-                      + Vacación
+                      + Vacaciones
                     </button>
                   </div>
                 )
