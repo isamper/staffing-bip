@@ -30,6 +30,7 @@ interface ConsultantStats {
   isOnProject: boolean
   isOnBeach: boolean
   activeBeachTasks: BeachAssignment[]
+  pastBeachTasks: BeachAssignment[]
   projectsInfo: ProjectInfo[]
 }
 
@@ -247,6 +248,9 @@ export default function PeopleTab({
       const activeBeachTasks = beachAssignments.filter(
         (b) => b.consultant_id === c.id && new Date(b.end_date) >= today,
       )
+      const pastBeachTasks = beachAssignments.filter(
+        (b) => b.consultant_id === c.id && new Date(b.end_date) < today,
+      )
 
       return {
         consultant: c,
@@ -258,6 +262,7 @@ export default function PeopleTab({
         isOnProject: totalDedication > 0,
         isOnBeach: totalDedication === 0,
         activeBeachTasks,
+        pastBeachTasks,
         projectsInfo,
       }
     })
@@ -484,8 +489,9 @@ export default function PeopleTab({
             <div key={s.consultant.id}>
               <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} />
               {/* Beach tasks row */}
-              {s.activeBeachTasks.length > 0 && (
+              {(s.activeBeachTasks.length > 0 || s.pastBeachTasks.length > 0 || s.isOnBeach) && (
                 <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
+                  {/* Active beach tasks */}
                   {s.activeBeachTasks.map((b) => (
                     <span
                       key={b.id}
@@ -504,6 +510,25 @@ export default function PeopleTab({
                       </button>
                     </span>
                   ))}
+                  {/* Past beach tasks */}
+                  {s.pastBeachTasks.map((b) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
+                    >
+                      <Umbrella size={10} />
+                      <span>{b.task_type} — {b.description}</span>
+                      <span>· {formatDate(b.end_date)}</span>
+                      <span className="rounded-full bg-slate-200 px-1 text-slate-500 font-medium">pasada</span>
+                      <button
+                        onClick={() => onRemoveBeach(b.id)}
+                        className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
+                        title="Eliminar tarea"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
                   <button
                     onClick={() => openBeachModal(s.consultant)}
                     className="inline-flex items-center gap-1 rounded-full border border-dashed border-amber-300 px-2 py-0.5 text-xs text-amber-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
@@ -512,24 +537,15 @@ export default function PeopleTab({
                   </button>
                 </div>
               )}
-              {/* No beach tasks but on beach → show assign button subtly */}
-              {s.isOnBeach && s.activeBeachTasks.length === 0 && (
-                <div className="ml-12 -mt-1 mb-1 px-3">
-                  <button
-                    onClick={() => openBeachModal(s.consultant)}
-                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-200 px-2 py-0.5 text-xs text-slate-400 hover:border-amber-300 hover:text-amber-500 transition-colors"
-                  >
-                    <Umbrella size={10} />
-                    Asignar tarea de playa
-                  </button>
-                </div>
-              )}
               {/* Vacations row */}
               {(() => {
-                const consultantVacations = vacations.filter(v => v.consultant_id === s.consultant.id)
+                const allVacations = vacations.filter(v => v.consultant_id === s.consultant.id)
+                const activeVacations = allVacations.filter(v => new Date(v.end_date) >= today)
+                const pastVacations = allVacations.filter(v => new Date(v.end_date) < today)
                 return (
                   <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3 items-center">
-                    {consultantVacations.map((v) => (
+                    {/* Active vacations */}
+                    {activeVacations.map((v) => (
                       <span
                         key={v.id}
                         className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
@@ -540,6 +556,25 @@ export default function PeopleTab({
                         <button
                           onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
                           className="ml-0.5 text-blue-400 hover:text-blue-600 transition-colors"
+                          title="Eliminar vacación"
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    {/* Past vacations */}
+                    {pastVacations.map((v) => (
+                      <span
+                        key={v.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
+                      >
+                        <CalendarOff size={10} />
+                        <span>{formatDate(v.start_date)} – {formatDate(v.end_date)}</span>
+                        {v.note && <span>· {v.note}</span>}
+                        <span className="rounded-full bg-slate-200 px-1 text-slate-500 font-medium">pasada</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
+                          className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
                           title="Eliminar vacación"
                         >
                           <X size={10} />
