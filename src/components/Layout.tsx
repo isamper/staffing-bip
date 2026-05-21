@@ -1,18 +1,21 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, Bell } from 'lucide-react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { LogOut, Bell, LayoutDashboard, User } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getInitials } from '@/lib/utils'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   async function handleSignOut() {
     await signOut()
     navigate('/login')
   }
 
-  const dashboardPath = profile?.user_role === 'hr_admin' ? '/admin' : '/employee'
+  const isAdmin = profile?.user_role === 'hr_admin'
+  const isOnAdminView = location.pathname.startsWith('/admin')
+  const dashboardPath = isAdmin ? '/admin' : '/employee'
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -28,6 +31,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-4">
+            {isAdmin && (
+              <Link
+                to={isOnAdminView ? '/employee' : '/admin'}
+                className="flex items-center gap-1.5 rounded-md border border-navy-600 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-navy-700 hover:text-white"
+                title={isOnAdminView ? 'Cambiar a vista de consultor' : 'Cambiar a vista de admin'}
+              >
+                {isOnAdminView ? (
+                  <><User size={13} /> Vista Consultor</>
+                ) : (
+                  <><LayoutDashboard size={13} /> Vista Admin</>
+                )}
+              </Link>
+            )}
             <button className="relative rounded-md p-1.5 text-slate-200 transition hover:bg-navy-700 hover:text-white">
               <Bell size={18} />
             </button>

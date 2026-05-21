@@ -19,8 +19,9 @@ export default function ProtectedRoute({ children, role }: Props) {
   }
 
   if (!profile) return <Navigate to="/login" replace />
-  if (role && profile.user_role !== role) {
-    return <Navigate to={profile.user_role === 'hr_admin' ? '/admin' : '/employee'} replace />
+  // hr_admin can access both /admin and /employee views
+  if (role && profile.user_role !== role && !(profile.user_role === 'hr_admin')) {
+    return <Navigate to="/employee" replace />
   }
 
   return <>{children}</>
