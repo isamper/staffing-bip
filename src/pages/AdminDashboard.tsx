@@ -318,8 +318,20 @@ function AssignedMemberRow({
   )
 }
 
-// ─── localStorage persistence key ────────────────────────────────────────────
-const KIMBLE_STORAGE_KEY = 'bench_kimble_result_v1'
+// ─── localStorage persistence keys ───────────────────────────────────────────
+const KIMBLE_STORAGE_KEY      = 'bench_kimble_result_v1'
+const DEACTIVATED_STORAGE_KEY = 'bench_deactivated_v1'
+
+function loadDeactivatedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DEACTIVATED_STORAGE_KEY)
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+  } catch { return new Set() }
+}
+
+function saveDeactivatedIds(ids: Set<string>) {
+  try { localStorage.setItem(DEACTIVATED_STORAGE_KEY, JSON.stringify([...ids])) } catch { }
+}
 
 // ─── main component ───────────────────────────────────────────────────────────
 
@@ -340,16 +352,21 @@ export default function AdminDashboard() {
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
-  // On mount: re-apply the last Kimble import from localStorage so data persists across reloads
+  // On mount: re-apply the last Kimble import and any deactivations from localStorage
   useEffect(() => {
+    // 1. Kimble data
     try {
       const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
-      if (!saved) return
-      const result: KimbleImportResult = JSON.parse(saved)
-      handleKimbleImport(result)
+      if (saved) handleKimbleImport(JSON.parse(saved))
     } catch {
-      // corrupted storage — ignore and start fresh
       localStorage.removeItem(KIMBLE_STORAGE_KEY)
+    }
+    // 2. Deactivations
+    const deactivated = loadDeactivatedIds()
+    if (deactivated.size > 0) {
+      setConsultants((prev) =>
+        prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
+      )
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -609,6 +626,9 @@ export default function AdminDashboard() {
     setConsultants((prev) =>
       prev.map((c) => c.id === consultantId ? { ...c, is_active: false } : c),
     )
+    const ids = loadDeactivatedIds()
+    ids.add(consultantId)
+    saveDeactivatedIds(ids)
   }
 
   function toggleReplacements(consultantId: string) {
