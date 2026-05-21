@@ -129,6 +129,7 @@ function loadAssignments(): ProjectAssignment[] {
 }
 
 const PROFILES_STORAGE_KEY = 'bench_profiles_v1'
+const CV_DISMISSED_KEY     = 'bench_cv_dismissed_v1'
 
 /** Fields a consultant can edit in their CV (persisted to localStorage) */
 const EDITABLE_PROFILE_KEYS: (keyof Profile)[] = [
@@ -206,6 +207,12 @@ export default function EmployeeDashboard() {
 
   const [cvDirty, setCvDirty] = useState(false)
   const [cvSaved, setCvSaved] = useState(false)
+  const [dismissedBannerIds, setDismissedBannerIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(CV_DISMISSED_KEY)
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+    } catch { return new Set() }
+  })
 
   // Re-sync when authProfile resolves (hard refresh / session restore).
   // Apply saved edits so persisted data is never lost.
@@ -252,14 +259,21 @@ export default function EmployeeDashboard() {
     .map((a) => ({ assignment: a, project: allProjects.find((p) => p.id === a.project_id)! }))
     .filter((x) => x.project)
 
-  // Projects ended in the last 90 days → prompt to update CV
+  // Projects ended in the last 90 days → prompt to update CV (unless dismissed)
   const recentlyEndedProjects = myAllAssignments
     .map((a) => allProjects.find((p) => p.id === a.project_id))
     .filter((p): p is NonNullable<typeof p> => {
       if (!p) return false
+      if (dismissedBannerIds.has(p.id)) return false
       const end = new Date(p.end_date)
       return end < today && end >= ninetyDaysAgo
     })
+
+  function dismissBanner() {
+    const ids = new Set([...dismissedBannerIds, ...recentlyEndedProjects.map(p => p.id)])
+    setDismissedBannerIds(ids)
+    try { localStorage.setItem(CV_DISMISSED_KEY, JSON.stringify([...ids])) } catch { /* ignore */ }
+  }
 
   // Availability derived from real active assignments (not the static profile field)
   const latestActiveEnd = myAssignments.reduce<string | null>((max, a) => {
@@ -376,7 +390,7 @@ export default function EmployeeDashboard() {
       {tab === 'overview' && recentlyEndedProjects.length > 0 && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium text-amber-800">Actualiza tu CV</p>
             <p className="text-xs text-amber-700 mt-0.5">
               Tienes {recentlyEndedProjects.length === 1 ? 'un proyecto que terminó recientemente' : `${recentlyEndedProjects.length} proyectos que terminaron recientemente`}.
@@ -390,6 +404,13 @@ export default function EmployeeDashboard() {
               Ir a mi CV →
             </button>
           </div>
+          <button
+            onClick={dismissBanner}
+            title="Marcar como revisado"
+            className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors"
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 
