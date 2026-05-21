@@ -40,7 +40,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemoMode) {
       const stored = localStorage.getItem(DEMO_SESSION_KEY)
-      if (stored) setProfile(JSON.parse(stored))
+      if (stored) {
+        try {
+          const cached = JSON.parse(stored) as Profile
+          // Re-derive from current mockData using the cached name so stale IDs,
+          // skills, or roles from an older build are never used.
+          const normCached = cached.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+          // 1. Named admin users (DEMO_USERS)
+          const demoEntry = Object.values(DEMO_USERS).find(
+            (u) => u.profile.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() === normCached,
+          )
+          if (demoEntry) {
+            setProfile(demoEntry.profile)
+            localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(demoEntry.profile))
+          } else {
+            // 2. Regular consultant
+            const consultant = mockConsultants.find(
+              (c) => c.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() === normCached,
+            )
+            if (consultant) {
+              setProfile(consultant)
+              localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(consultant))
+            } else {
+              setProfile(cached) // unknown user — keep as-is
+            }
+          }
+        } catch {
+          localStorage.removeItem(DEMO_SESSION_KEY)
+        }
+      }
       setLoading(false)
       return
     }
