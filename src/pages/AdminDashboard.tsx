@@ -205,6 +205,16 @@ function AssignedMemberRow({
   const isOver = totalDedication > maxDedication
   const showingReplacements = replacementsFor === consultant.id
 
+  // Vacation overlap with project
+  const ps = new Date(project.start_date)
+  const pe = new Date(project.end_date)
+  const vacationWarning = vacations
+    .filter((v) => v.consultant_id === consultant.id)
+    .find((v) => new Date(v.start_date) <= pe && new Date(v.end_date) >= ps)
+  const vacWarningText = vacationWarning
+    ? `Vacaciones: ${formatDate(vacationWarning.start_date)} – ${formatDate(vacationWarning.end_date)}`
+    : null
+
   const replacements = showingReplacements
     ? findReplacements(consultant, project, mockConsultants, assignments, vacations, mockLikes)
     : []
@@ -225,6 +235,9 @@ function AssignedMemberRow({
           <p className="text-sm font-medium text-navy-800">{consultant.name}</p>
           <p className="text-xs text-slate-500">{consultant.seniority}</p>
           <p className="truncate text-xs text-slate-400">{consultant.skills.slice(0, 3).join(', ')}</p>
+          {vacWarningText && (
+            <p className="mt-0.5 text-xs text-amber-600">⚠ {vacWarningText}</p>
+          )}
         </div>
 
         <div className="shrink-0 text-right">
