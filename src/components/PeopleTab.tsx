@@ -9,7 +9,7 @@ import ConsultantCV from '@/components/ConsultantCV'
 import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import type { Profile, Project, ProjectAssignment, BeachAssignment, BeachTaskType, VacationRequest } from '@/lib/types'
 
-type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated' | 'beach'
+type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated'
 
 const BEACH_TASK_TYPES: BeachTaskType[] = ['Propuesta', 'Actividad Interna', 'Apoyo a Proyecto', 'Otro']
 
@@ -307,7 +307,6 @@ export default function PeopleTab({
     on_project: stats.filter((s) => s.isOnProject).length,
     rolling_off: stats.filter((s) => s.isRollingOff).length,
     over_dedicated: stats.filter((s) => s.isOverDedicated).length,
-    beach: stats.filter((s) => s.isOnBeach).length,
   }
 
   const filtered = stats
@@ -316,7 +315,6 @@ export default function PeopleTab({
       if (filter === 'on_project') return s.isOnProject
       if (filter === 'rolling_off') return s.isRollingOff
       if (filter === 'over_dedicated') return s.isOverDedicated
-      if (filter === 'beach') return s.isOnBeach
       return true
     })
     .filter((s) => {
@@ -486,7 +484,6 @@ export default function PeopleTab({
           <FilterChip label="On Project" count={counts.on_project} active={filter === 'on_project'} color="blue" onClick={() => setFilter('on_project')} />
           <FilterChip label="Rolling Off (30d)" count={counts.rolling_off} active={filter === 'rolling_off'} color="amber" onClick={() => setFilter('rolling_off')} />
           <FilterChip label="Over-dedicated" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => setFilter('over_dedicated')} />
-          <FilterChip label="Playa" count={counts.beach} active={filter === 'beach'} color="amber" onClick={() => setFilter('beach')} />
         </div>
 
         {/* Search */}
