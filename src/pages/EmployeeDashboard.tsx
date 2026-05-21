@@ -155,8 +155,16 @@ export default function EmployeeDashboard() {
   const todayStr = today.toISOString().split('T')[0]
   const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000)
 
+  // The profile cached in bench_demo_user may have a stale ID if the user
+  // logged in before profiles were updated. Always resolve the canonical
+  // consultant ID by name-matching against mockConsultants.
+  const knownConsultant = mockConsultants.find(
+    (c) => normName(c.name) === normName(profile.name),
+  )
+  const consultantId = knownConsultant?.id ?? profile.id
+
   // All assignments for this consultant
-  const myAllAssignments = allAssignments.filter((a) => a.consultant_id === profile.id)
+  const myAllAssignments = allAssignments.filter((a) => a.consultant_id === consultantId)
 
   // Currently active assignments — same date filter as admin Projects tab
   const myAssignments = myAllAssignments.filter((a) => {
