@@ -351,16 +351,20 @@ export default function AdminDashboard() {
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
-  const [vacations, setVacations] = useState<VacationRequest[]>(
-    () => loadFromStorage(VACATIONS_STORAGE_KEY, mockVacationRequests),
-  )
+  const [vacations, setVacations] = useState<VacationRequest[]>(() => {
+    const yearStart = `${new Date().getFullYear()}-01-01`
+    return loadFromStorage<VacationRequest>(VACATIONS_STORAGE_KEY, mockVacationRequests)
+      .filter((v) => v.end_date >= yearStart)
+  })
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
   const [kimbleModalOpen, setKimbleModalOpen] = useState(false)
   const [lastImport, setLastImport] = useState<string | null>(null)
-  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>(
-    () => loadFromStorage(BEACH_STORAGE_KEY, []),
-  )
+  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>(() => {
+    const yearStart = `${new Date().getFullYear()}-01-01`
+    return loadFromStorage<BeachAssignment>(BEACH_STORAGE_KEY, [])
+      .filter((b) => b.end_date >= yearStart)
+  })
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
