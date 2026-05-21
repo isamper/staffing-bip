@@ -21,10 +21,6 @@ const ROLE_TITLES = [
   'Consultor Senior',
   'Consultor',
   'Practicante',
-  'Experto en Datos y Analítica',
-  'Directora de Talento Humano',
-  'Especialista en Gestión de Proyectos',
-  'Gerente Senior de Arquitectura TI',
 ]
 
 // Maps Spanish display title → Kimble English seniority value
