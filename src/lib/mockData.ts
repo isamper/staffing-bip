@@ -735,11 +735,11 @@ export const mockAssignments: ProjectAssignment[] = [
   // ── Politecnico Internacional — Marketing digital ──
   { id: 'a62', project_id: 'p699', consultant_id: 'c63', dedication_percentage: 100, end_date: '2026-06-19', assigned_at: '2026-02-02T00:00:00Z' },
 
-  // ── D1 — ERP Gap Analysis (ended Apr 17) ──
-  { id: 'a63', project_id: 'p703', consultant_id: 'c11', dedication_percentage: 50,  end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a64', project_id: 'p703', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a65', project_id: 'p703', consultant_id: 'c42', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a66', project_id: 'p703', consultant_id: 'c60', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' },
+  // ── D1 — GAP Analisis (ended Apr 17, from Kimble E000712) ──
+  { id: 'a63', project_id: 'p703', consultant_id: 'c3',  dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Juan Fernando Forero
+  { id: 'a64', project_id: 'p703', consultant_id: 'c9',  dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Iván Melo
+  { id: 'a65', project_id: 'p703', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Violeta Rodríguez
+  { id: 'a66', project_id: 'p703', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-04-17', assigned_at: '2026-02-09T00:00:00Z' }, // Sofia Correa
 
   // ── Aruba Bank — Interim Security Role Fase 2 (ended Apr 3) ──
   { id: 'a67', project_id: 'p704', consultant_id: 'c26', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
