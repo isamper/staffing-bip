@@ -189,6 +189,7 @@ interface AssignedMemberRowProps {
   vacations: VacationRequest[]
   replacementsFor: string | null
   onToggleReplacements: (id: string) => void
+  onUnassign: () => void
 }
 
 function AssignedMemberRow({
@@ -201,6 +202,7 @@ function AssignedMemberRow({
   vacations,
   replacementsFor,
   onToggleReplacements,
+  onUnassign,
 }: AssignedMemberRowProps) {
   const isOver = totalDedication > maxDedication
   const showingReplacements = replacementsFor === consultant.id
@@ -272,6 +274,14 @@ function AssignedMemberRow({
         </button>
       )}
 
+      {/* Desasignar button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onUnassign() }}
+        className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-400 hover:border-red-200 hover:text-red-500 transition-colors"
+      >
+        <X size={11} /> Desasignar
+      </button>
+
       {/* Replacement suggestions */}
       {showingReplacements && (
         <div className="mt-3 border-t border-red-100 pt-3">
@@ -323,6 +333,7 @@ const KIMBLE_STORAGE_KEY      = 'bench_kimble_result_v1'
 const DEACTIVATED_STORAGE_KEY = 'bench_deactivated_v1'
 const BEACH_STORAGE_KEY       = 'bench_beach_v1'
 const VACATIONS_STORAGE_KEY   = 'bench_vacations_v1'
+const ASSIGNMENTS_STORAGE_KEY = 'bench_assignments_v1'
 
 function loadDeactivatedIds(): Set<string> {
   try {
@@ -350,7 +361,9 @@ export default function AdminDashboard() {
   const [consultants, setConsultants] = useState<Profile[]>(mockConsultants)
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
+  const [assignments, setAssignments] = useState<ProjectAssignment[]>(
+    () => loadFromStorage<ProjectAssignment>(ASSIGNMENTS_STORAGE_KEY, mockAssignments),
+  )
   const [vacations, setVacations] = useState<VacationRequest[]>(() => {
     const yearStart = `${new Date().getFullYear()}-01-01`
     return loadFromStorage<VacationRequest>(VACATIONS_STORAGE_KEY, mockVacationRequests)
@@ -371,12 +384,13 @@ export default function AdminDashboard() {
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
-  // On mount: re-apply the last Kimble import and any deactivations from localStorage
+  // On mount: restore projects + consultant metadata from last Kimble import,
+  // but leave assignments alone (they come from bench_assignments_v1 above).
   useEffect(() => {
-    // 1. Kimble data
+    // 1. Kimble metadata only (projects + consultant dedications, no assignments)
     try {
       const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
-      if (saved) handleKimbleImport(JSON.parse(saved))
+      if (saved) handleKimbleImport(JSON.parse(saved), { skipAssignments: true })
     } catch {
       localStorage.removeItem(KIMBLE_STORAGE_KEY)
     }
@@ -389,7 +403,7 @@ export default function AdminDashboard() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleKimbleImport(result: KimbleImportResult) {
+  function handleKimbleImport(result: KimbleImportResult, opts: { skipAssignments?: boolean } = {}) {
     // Accent-insensitive name normalization
     const normName = (s: string) =>
       s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
@@ -464,8 +478,21 @@ export default function AdminDashboard() {
         return [a]
       })
 
-    // Kimble is the source of truth for the full year — replace everything.
-    setAssignments(newAssignments)
+    // On explicit import: Kimble is always the source of truth — replace all
+    // Kimble-covered assignments. Manual assignments for other projects are kept.
+    // On mount (skipAssignments=true): skip entirely; assignments come from localStorage.
+    if (!opts.skipAssignments) {
+      setAssignments((prev) => {
+        const kimbleProjectIds = new Set(result.projects.map(
+          (kp) => numericToExistingId.get(numericCode(kp.id)) ?? kp.id,
+        ))
+        // Drop any existing assignment (manual or kimble) for projects in this Kimble file
+        const kept = prev.filter((a) => !kimbleProjectIds.has(a.project_id))
+        const updated = [...kept, ...newAssignments]
+        saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+        return updated
+      })
+    }
 
     // 3. Update annual_dedication_pct + merge industry/area data on matching profiles
     setConsultants((prev) =>
@@ -575,36 +602,46 @@ export default function AdminDashboard() {
   }
 
   function handleAssign(consultantId: string, projectId: string) {
-    const project = mockProjects.find((p) => p.id === projectId)
-    setAssignments((prev) => [
-      ...prev,
-      {
+    const project = projects.find((p) => p.id === projectId)
+    setAssignments((prev) => {
+      const updated = [...prev, {
         id: `a${Date.now()}`,
         project_id: projectId,
         consultant_id: consultantId,
         dedication_percentage: 100,
         end_date: project?.end_date ?? null,
         assigned_at: new Date().toISOString(),
-      },
-    ])
+      }]
+      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleManualAdd(consultantId: string) {
     if (!selectedProject) return
-    setAssignments((prev) => [
-      ...prev,
-      {
+    setAssignments((prev) => {
+      const updated = [...prev, {
         id: `manual-${Date.now()}`,
         project_id: selectedProject.id,
         consultant_id: consultantId,
         dedication_percentage: addDedication,
         end_date: selectedProject.end_date,
         assigned_at: new Date().toISOString(),
-      },
-    ])
+      }]
+      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      return updated
+    })
     setShowAddModal(false)
     setAddSearch('')
     setAddDedication(100)
+  }
+
+  function handleUnassign(assignmentId: string) {
+    setAssignments((prev) => {
+      const updated = prev.filter((a) => a.id !== assignmentId)
+      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      return updated
+    })
   }
 
   function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string) {
@@ -942,6 +979,7 @@ export default function AdminDashboard() {
                                   vacations={vacations}
                                   replacementsFor={replacementsFor}
                                   onToggleReplacements={toggleReplacements}
+                                  onUnassign={() => handleUnassign(assignment.id)}
                                 />
                               )
                             })}
@@ -1103,7 +1141,11 @@ export default function AdminDashboard() {
             likes={mockLikes}
             beachAssignments={beachAssignments}
             onApply={(newAssignments) =>
-              setAssignments((prev) => [...prev, ...newAssignments])
+              setAssignments((prev) => {
+                const updated = [...prev, ...newAssignments]
+                saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+                return updated
+              })
             }
           />
         </TabsContent>
