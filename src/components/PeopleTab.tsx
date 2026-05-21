@@ -170,29 +170,6 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
             <span className="text-xs text-slate-400">+{consultant.skills.length - 4}</span>
           )}
         </div>
-        {/* Past vacations — shown inside the card */}
-        {stats.pastVacations.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {stats.pastVacations.map((v) => (
-              <span
-                key={v.id}
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
-              >
-                <CalendarOff size={10} />
-                <span>{formatDate(v.start_date)} – {formatDate(v.end_date)}</span>
-                {v.note && <span>· {v.note}</span>}
-                <span className="rounded-full bg-slate-200 px-1 font-medium text-slate-500">pasada</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
-                  className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
-                  title="Eliminar vacación"
-                >
-                  <X size={10} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Right: dedication bar + status + availability + chevron */}
@@ -624,11 +601,13 @@ export default function PeopleTab({
                   </button>
                 </div>
               )}
-              {/* Vacations row — active only; past vacations shown inside the card */}
+              {/* Vacations row — active (blue) + past (gray) */}
               {(() => {
                 const activeVacations = vacations.filter(v => v.consultant_id === s.consultant.id && new Date(v.end_date) >= today)
+                const pastVacations   = s.pastVacations
                 return (
                   <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3 items-center">
+                    {/* Active vacations */}
                     {activeVacations.map((v) => (
                       <span
                         key={v.id}
@@ -640,6 +619,25 @@ export default function PeopleTab({
                         <button
                           onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
                           className="ml-0.5 text-blue-400 hover:text-blue-600 transition-colors"
+                          title="Eliminar vacación"
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    {/* Past vacations — same lighter style as past beach tasks */}
+                    {pastVacations.map((v) => (
+                      <span
+                        key={v.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
+                      >
+                        <CalendarOff size={10} />
+                        <span>{formatDate(v.start_date)} – {formatDate(v.end_date)}</span>
+                        {v.note && <span>· {v.note}</span>}
+                        <span className="rounded-full bg-slate-200 px-1 font-medium text-slate-500">pasada</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveVacation(v.id) }}
+                          className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
                           title="Eliminar vacación"
                         >
                           <X size={10} />
