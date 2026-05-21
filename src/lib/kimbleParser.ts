@@ -233,27 +233,55 @@ export function parseKimbleExcel(
         )
 
         // ── Raw assignments (Firm rows only) ─────────────────────────────
-        const rawAssignments: KimbleRawAssignment[] = firmRows.map((row) => {
-          const engRaw = String(row[5] ?? '')
-          const code   = extractCode(engRaw)
-          const proj   = projectMap.get(code)!
-          const usageDays = Number(row[10] ?? 0)
+        // A consultant can appear multiple times for the same project (extensions,
+        // different date ranges). Merge by (projectId, consultantName): sum usage days
+        // and keep the latest individual end date.
+        type MergedKey = string
+        const mergedMap = new Map<MergedKey, {
+          projectId: string; consultantName: string
+          totalUsageDays: number; latestEndDate: string
+        }>()
+
+        for (const row of firmRows) {
+          const engRaw       = String(row[5] ?? '')
+          const code         = extractCode(engRaw)
+          const consultantName = String(row[3] ?? '').trim()
+          const usageDays    = Number(row[10] ?? 0)
+          const rowEndDate   = parseDMY(String(row[9] ?? ''))
+
+          const key: MergedKey = `${code}||${consultantName}`
+          const existing = mergedMap.get(key)
+          if (existing) {
+            existing.totalUsageDays += usageDays
+            if (rowEndDate > existing.latestEndDate) existing.latestEndDate = rowEndDate
+          } else {
+            mergedMap.set(key, {
+              projectId: code,
+              consultantName,
+              totalUsageDays: usageDays,
+              latestEndDate: rowEndDate,
+            })
+          }
+        }
+
+        const rawAssignments: KimbleRawAssignment[] = [...mergedMap.values()].map((entry) => {
+          const proj = projectMap.get(entry.projectId)!
 
           const startDate = new Date(proj.startDate + 'T00:00:00')
           const endDate   = new Date(proj.endDate + 'T00:00:00')
           const projectWorkDays = countColombianWorkDays(startDate, endDate)
           const projectDedPct   =
             projectWorkDays > 0
-              ? Math.min(100, Math.round((usageDays / projectWorkDays) * 100))
+              ? Math.min(100, Math.round((entry.totalUsageDays / projectWorkDays) * 100))
               : 100
 
           return {
-            projectId: code,
-            consultantName: String(row[3] ?? '').trim(),
-            usageDays,
+            projectId: entry.projectId,
+            consultantName: entry.consultantName,
+            usageDays: entry.totalUsageDays,
             projectWorkDays,
             projectDedPct,
-            endDate: proj.endDate,
+            endDate: entry.latestEndDate,
           }
         })
 

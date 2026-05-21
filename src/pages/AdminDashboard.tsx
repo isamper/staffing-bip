@@ -784,9 +784,7 @@ export default function AdminDashboard() {
                                 <p className="text-sm font-medium text-navy-800">{consultant.name}</p>
                                 <p className="text-xs text-slate-500">{consultant.role_title} · {consultant.seniority}</p>
                               </div>
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 shrink-0">
-                                {assignment.dedication_percentage}%
-                              </span>
+                              {/* No dedication % shown for ended projects */}
                             </div>
                           ))}
                         </div>
