@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Search, Heart,
   AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus,
@@ -318,6 +318,9 @@ function AssignedMemberRow({
   )
 }
 
+// ─── localStorage persistence key ────────────────────────────────────────────
+const KIMBLE_STORAGE_KEY = 'bench_kimble_result_v1'
+
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
@@ -336,6 +339,29 @@ export default function AdminDashboard() {
   const [addDedication, setAddDedication] = useState(100)
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
+
+  // Ref used to scroll the detail panel into view when a project is selected
+  const detailPanelRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to the detail panel whenever a project is selected
+  useEffect(() => {
+    if (selectedProject) {
+      detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selectedProject])
+
+  // On mount: re-apply the last Kimble import from localStorage so data persists across reloads
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
+      if (!saved) return
+      const result: KimbleImportResult = JSON.parse(saved)
+      handleKimbleImport(result)
+    } catch {
+      // corrupted storage — ignore and start fresh
+      localStorage.removeItem(KIMBLE_STORAGE_KEY)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleKimbleImport(result: KimbleImportResult) {
     // Accent-insensitive name normalization
@@ -446,6 +472,13 @@ export default function AdminDashboard() {
     )
 
     setLastImport(result.fileName)
+
+    // Persist the import result so it survives page reloads
+    try {
+      localStorage.setItem(KIMBLE_STORAGE_KEY, JSON.stringify(result))
+    } catch {
+      // storage full — not critical, just skip
+    }
   }
 
   const endedProjects = projects.filter((p) => new Date(p.end_date) < today)
@@ -736,7 +769,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Right panel */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2" ref={detailPanelRef}>
               {selectedProject ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
                   {/* Header */}
