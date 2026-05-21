@@ -425,8 +425,18 @@ export default function AdminDashboard() {
       })
 
     setAssignments((prev) => {
-      const manual = prev.filter((a) => !a.id.startsWith('kimble-'))
-      return [...manual, ...newAssignments]
+      // For every project covered by this Kimble import, discard ALL previous
+      // assignments (mock or kimble) so stale data never mixes with fresh Kimble data.
+      // Projects NOT in the Kimble export keep their existing (manual) assignments.
+      const coveredProjectIds = new Set<string>()
+      for (const kp of result.projects) {
+        const resolvedId = numericToExistingId.get(numericCode(kp.id)) ?? kp.id
+        coveredProjectIds.add(resolvedId)
+      }
+      const kept = prev.filter(
+        (a) => !a.id.startsWith('kimble-') && !coveredProjectIds.has(a.project_id),
+      )
+      return [...kept, ...newAssignments]
     })
 
     // 3. Update annual_dedication_pct + merge industry/area data on matching profiles
