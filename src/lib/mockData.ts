@@ -747,11 +747,11 @@ export const mockAssignments: ProjectAssignment[] = [
   { id: 'a69', project_id: 'p704', consultant_id: 'c61', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
   { id: 'a70', project_id: 'p704', consultant_id: 'c69', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-01-05T00:00:00Z' },
 
-  // ── PersonalSoft — Estrategia de Negocio (ended Apr 3) ──
-  { id: 'a71', project_id: 'p702', consultant_id: 'c11', dedication_percentage: 50,  end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a72', project_id: 'p702', consultant_id: 'c25', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a73', project_id: 'p702', consultant_id: 'c31', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
-  { id: 'a74', project_id: 'p702', consultant_id: 'c48', dedication_percentage: 100, end_date: '2026-04-03', assigned_at: '2026-02-09T00:00:00Z' },
+  // ── PersonalSoft — Estrategia de Negocio (ended Apr 10, from Kimble) ──
+  { id: 'a71', project_id: 'p702', consultant_id: 'c3',  dedication_percentage: 100, end_date: '2026-04-10', assigned_at: '2025-12-01T00:00:00Z' }, // Juan Fernando Forero
+  { id: 'a72', project_id: 'p702', consultant_id: 'c13', dedication_percentage: 100, end_date: '2026-04-10', assigned_at: '2025-12-01T00:00:00Z' }, // Felipe Mediorreal
+  { id: 'a73', project_id: 'p702', consultant_id: 'c27', dedication_percentage: 100, end_date: '2026-03-27', assigned_at: '2025-12-01T00:00:00Z' }, // Maria Camila González
+  { id: 'a74', project_id: 'p702', consultant_id: 'c49', dedication_percentage: 100, end_date: '2026-04-10', assigned_at: '2025-12-01T00:00:00Z' }, // Emilio Baquerizo
 
   // ── Autogermana — Consolidación ERP/DMS (ended Mar 17) ──
   { id: 'a75', project_id: 'p691', consultant_id: 'c20', dedication_percentage: 100, end_date: '2026-03-17', assigned_at: '2026-02-17T00:00:00Z' },
