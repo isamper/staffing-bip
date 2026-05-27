@@ -252,7 +252,7 @@ function AssignedMemberRow({
             <span className="text-xs text-slate-400">/ {maxDedication}%</span>
           </div>
           <p className="mt-0.5 text-xs text-slate-400">
-            Until {formatDate(assignment.end_date ?? project.end_date)}
+            {assignment.start_date ? `${formatDate(assignment.start_date)} – ` : ''}{formatDate(assignment.end_date ?? project.end_date)}
           </p>
           {isOver && (
             <Badge variant="destructive" className="mt-1 text-xs">Over dedicated</Badge>
@@ -384,6 +384,8 @@ export default function AdminDashboard() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
+  const [addStartDate, setAddStartDate] = useState('')
+  const [addEndDate, setAddEndDate] = useState('')
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
 
@@ -630,7 +632,8 @@ export default function AdminDashboard() {
         project_id: projectId,
         consultant_id: consultantId,
         dedication_percentage: addDedication,
-        end_date: project?.end_date ?? null,
+        start_date: addStartDate || null,
+        end_date: addEndDate || (project?.end_date ?? null),
         assigned_at: new Date().toISOString(),
       }]
       saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
@@ -646,7 +649,8 @@ export default function AdminDashboard() {
         project_id: selectedProject.id,
         consultant_id: consultantId,
         dedication_percentage: addDedication,
-        end_date: selectedProject.end_date,
+        start_date: addStartDate || null,
+        end_date: addEndDate || selectedProject.end_date,
         assigned_at: new Date().toISOString(),
       }]
       saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
@@ -655,6 +659,8 @@ export default function AdminDashboard() {
     setShowAddModal(false)
     setAddSearch('')
     setAddDedication(100)
+    setAddStartDate('')
+    setAddEndDate('')
   }
 
   function handleUnassign(assignmentId: string) {
@@ -750,18 +756,41 @@ export default function AdminDashboard() {
                 </button>
               </div>
               <div className="p-5 space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-slate-500 mb-1 block">Dedicación (%)</label>
-                  <Input
-                    type="number"
-                    min={10}
-                    max={100}
-                    step={10}
-                    value={addDedication}
-                    onChange={(e) => setAddDedication(Number(e.target.value))}
-                    className="h-8 text-sm w-28"
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">Dedicación (%)</label>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={100}
+                      step={10}
+                      value={addDedication}
+                      onChange={(e) => setAddDedication(Number(e.target.value))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">Fecha inicio</label>
+                    <Input
+                      type="date"
+                      value={addStartDate}
+                      onChange={(e) => setAddStartDate(e.target.value)}
+                      className="h-8 text-sm"
+                      placeholder={selectedProject?.start_date ?? ''}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">Fecha fin</label>
+                    <Input
+                      type="date"
+                      value={addEndDate}
+                      onChange={(e) => setAddEndDate(e.target.value)}
+                      className="h-8 text-sm"
+                      placeholder={selectedProject?.end_date ?? ''}
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-slate-400 -mt-2">Dejar vacío para usar las fechas del proyecto.</p>
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input
@@ -1021,18 +1050,42 @@ export default function AdminDashboard() {
                       {/* Position suggestions — shown for Open / Partially Staffed projects */}
                       {!isActiveProject && (
                         <div className="space-y-5">
-                          {/* Dedication input shared by both "Assign" and "Agregar persona" */}
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium text-slate-500 whitespace-nowrap">Dedicación a asignar (%)</label>
-                            <Input
-                              type="number"
-                              min={10}
-                              max={100}
-                              step={10}
-                              value={addDedication}
-                              onChange={(e) => setAddDedication(Number(e.target.value))}
-                              className="h-7 text-sm w-24"
-                            />
+                          {/* Assignment params shared by "Assign" buttons and "Agregar persona" modal */}
+                          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-2">
+                            <p className="text-xs font-medium text-slate-500">Parámetros de asignación</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Dedicación (%)</label>
+                                <Input
+                                  type="number"
+                                  min={10}
+                                  max={100}
+                                  step={10}
+                                  value={addDedication}
+                                  onChange={(e) => setAddDedication(Number(e.target.value))}
+                                  className="h-7 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Fecha inicio</label>
+                                <Input
+                                  type="date"
+                                  value={addStartDate}
+                                  onChange={(e) => setAddStartDate(e.target.value)}
+                                  className="h-7 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Fecha fin</label>
+                                <Input
+                                  type="date"
+                                  value={addEndDate}
+                                  onChange={(e) => setAddEndDate(e.target.value)}
+                                  className="h-7 text-sm"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-400">Dejar vacío para usar las fechas del proyecto.</p>
                           </div>
                           {positionSuggestions.map(({ position, results }, pi) => (
                             <div key={position?.id ?? 'general'}>
