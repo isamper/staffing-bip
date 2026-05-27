@@ -559,6 +559,8 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
   const [translating, setTranslating] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
+  // Which language was most recently edited — the OTHER language's translation is stale
+  const [dirtyLang, setDirtyLang] = useState<'es' | 'en' | null>(null)
 
   const activeVersion = cvVersions.find(v => v.id === activeVersionId) ?? cvVersions[0]
   const hasEnContent = !!(activeVersion?.bio_en || activeVersion?.experience_en?.length)
@@ -691,6 +693,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
       const updated = cvVersions.map(v => v.id === activeVersionId ? { ...v, ...patch } : v)
       setCvVersions(updated)
       setActiveLang(to)
+      setDirtyLang(null)
       saveVersionsAndNotify(updated)
     } catch (err) {
       console.error('Translation error:', err)
@@ -718,9 +721,11 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
       if (key === 'bio') {
         if (activeLang === 'es') versionPatch.bio_es = value as string | null
         else versionPatch.bio_en = value as string | null
+        setDirtyLang(activeLang)  // the other language's translation is now stale
       } else if (key === 'experience') {
         if (activeLang === 'es') versionPatch.experience_es = value as ExperienceEntry[]
         else versionPatch.experience_en = value as ExperienceEntry[]
+        setDirtyLang(activeLang)  // the other language's translation is now stale
       } else {
         (profilePatch as Record<string, unknown>)[key] = value
       }
@@ -828,19 +833,34 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Language toggle — clicking EN translates if no EN content exists yet */}
+          {/* Language toggle — auto-retranslates when the other language is stale */}
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+            {/* ES tab */}
             <button
-              onClick={() => setActiveLang('es')}
-              className={`px-2.5 py-1.5 font-medium transition-colors ${activeLang === 'es' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => {
+                if (!readOnly && dirtyLang === 'en' && hasEnContent) handleTranslate('en→es')
+                else setActiveLang('es')
+              }}
+              disabled={translating}
+              className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-60 ${
+                activeLang === 'es' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'
+              }`}
             >
               ES
+              {dirtyLang === 'en' && activeLang === 'en' && !translating && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" title="Traducción desactualizada" />
+              )}
             </button>
+            {/* EN tab */}
             <button
-              onClick={() => hasEnContent ? setActiveLang('en') : (!readOnly ? handleTranslate('es→en') : undefined)}
+              onClick={() => {
+                if (!readOnly && dirtyLang === 'es' && hasEnContent) handleTranslate('es→en')
+                else if (hasEnContent) setActiveLang('en')
+                else if (!readOnly) handleTranslate('es→en')
+              }}
               disabled={translating}
-              title={!hasEnContent && !readOnly ? 'Haz clic para traducir al inglés' : undefined}
-              className={`inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-60 ${
+              title={!hasEnContent && !readOnly ? 'Haz clic para traducir al inglés' : dirtyLang === 'es' && !readOnly ? 'Traducción desactualizada — clic para actualizar' : undefined}
+              className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-60 ${
                 activeLang === 'en' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
@@ -850,6 +870,9 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
                   ? <>EN <span className="opacity-50 text-[10px]">✓</span></>
                   : <>EN {!readOnly && <Languages size={10} className="opacity-50" />}</>
               }
+              {dirtyLang === 'es' && activeLang === 'es' && hasEnContent && !translating && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" title="Traducción desactualizada" />
+              )}
             </button>
           </div>
           <button
