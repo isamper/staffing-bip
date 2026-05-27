@@ -629,7 +629,7 @@ export default function AdminDashboard() {
         id: `a${Date.now()}`,
         project_id: projectId,
         consultant_id: consultantId,
-        dedication_percentage: 100,
+        dedication_percentage: addDedication,
         end_date: project?.end_date ?? null,
         assigned_at: new Date().toISOString(),
       }]
@@ -1021,6 +1021,19 @@ export default function AdminDashboard() {
                       {/* Position suggestions — shown for Open / Partially Staffed projects */}
                       {!isActiveProject && (
                         <div className="space-y-5">
+                          {/* Dedication input shared by both "Assign" and "Agregar persona" */}
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium text-slate-500 whitespace-nowrap">Dedicación a asignar (%)</label>
+                            <Input
+                              type="number"
+                              min={10}
+                              max={100}
+                              step={10}
+                              value={addDedication}
+                              onChange={(e) => setAddDedication(Number(e.target.value))}
+                              className="h-7 text-sm w-24"
+                            />
+                          </div>
                           {positionSuggestions.map(({ position, results }, pi) => (
                             <div key={position?.id ?? 'general'}>
                               {position && (
