@@ -60,6 +60,7 @@ export interface CVVersion {
   bio_en: string | null
   experience_es: ExperienceEntry[]
   experience_en: ExperienceEntry[]  // same IDs as experience_es, descriptions translated
+  languages_en?: string | null      // translated version of profile.languages
 }
 
 export interface Position {

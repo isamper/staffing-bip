@@ -574,6 +574,51 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
       : activeVersion?.experience_es ?? data.experience ?? []
   const displayData: Profile = { ...data, bio: displayBio ?? null, experience: displayExperience }
 
+  // Translated languages (stored in the active version after first translation)
+  const displayLanguages =
+    activeLang === 'en' && activeVersion?.languages_en != null
+      ? activeVersion.languages_en
+      : data.languages
+
+  // UI labels — switch to English when in EN mode
+  const L = activeLang === 'en' ? {
+    summary:      'Professional Summary',
+    industryArea: 'Industry & Service Area Experience',
+    industries:   'Industries',
+    serviceAreas: 'Service Areas',
+    skills:       'Skills',
+    experience:   'Professional Experience',
+    education:    'Education',
+    languages:    'Languages',
+    yearsExp:     'Experience',
+    yearsUnit:    'years',
+    certifications: 'Certifications',
+    noExperience: 'No experience recorded.',
+    addEducation: 'Add education...',
+    addLanguages: 'e.g. Spanish, English',
+    addYears:     'e.g. 8',
+    addCert:      'Add certification...',
+    addSummary:   'Write a professional summary...',
+  } : {
+    summary:      'Resumen Profesional',
+    industryArea: 'Experiencia por Industria y Área',
+    industries:   'Industrias',
+    serviceAreas: 'Áreas de Servicio',
+    skills:       'Competencias',
+    experience:   'Experiencia Profesional',
+    education:    'Educación',
+    languages:    'Idiomas',
+    yearsExp:     'Experiencia',
+    yearsUnit:    'años',
+    certifications: 'Certificaciones',
+    noExperience: 'Sin experiencia registrada.',
+    addEducation: 'Agregar educación...',
+    addLanguages: 'Ej. Español, Inglés',
+    addYears:     'Ej. 8',
+    addCert:      'Agregar certificación...',
+    addSummary:   'Escribe un resumen profesional...',
+  }
+
   // ── Version management helpers ────────────────────────────────────────────
   function saveVersionsAndNotify(versions: CVVersion[], sharedPatch?: Partial<Profile>) {
     setCvVersions(versions)
@@ -633,9 +678,14 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             : exp.description,
         }))
       )
+      // Also translate the languages field (es→en only; es version is the source of truth)
+      const languages_en = direction === 'es→en' && data.languages
+        ? await myMemoryTranslate(data.languages, 'es', 'en')
+        : undefined
+
       const patch: Partial<CVVersion> =
         direction === 'es→en'
-          ? { bio_en: translatedBio, experience_en: translatedExp }
+          ? { bio_en: translatedBio, experience_en: translatedExp, ...(languages_en !== undefined ? { languages_en } : {}) }
           : { bio_es: translatedBio, experience_es: translatedExp }
 
       const updated = cvVersions.map(v => v.id === activeVersionId ? { ...v, ...patch } : v)
@@ -881,12 +931,12 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             {/* Education */}
             <div>
               <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
-                <GraduationCap size={10} /> Educación
+                <GraduationCap size={10} /> {L.education}
               </div>
               {!readOnly ? (
                 <EditableText
                   value={data.education ?? ''}
-                  placeholder="Agregar educación..."
+                  placeholder={L.addEducation}
                   onSave={v => update({ education: v || null })}
                   multiline
                   className="text-white/90 text-xs leading-snug"
@@ -900,37 +950,37 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             {/* Languages */}
             <div>
               <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
-                <Globe size={10} /> Idiomas
+                <Globe size={10} /> {L.languages}
               </div>
               {!readOnly ? (
                 <EditableText
                   value={data.languages ?? ''}
-                  placeholder="Ej. Español, Inglés"
+                  placeholder={L.addLanguages}
                   onSave={v => update({ languages: v || null })}
                   className="text-white/90 text-xs"
                   inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
               ) : (
-                <p className="text-white/90">{data.languages || '—'}</p>
+                <p className="text-white/90">{displayLanguages || '—'}</p>
               )}
             </div>
 
-            {/* Experience */}
+            {/* Years of experience */}
             <div>
               <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
-                <Briefcase size={10} /> Experiencia
+                <Briefcase size={10} /> {L.yearsExp}
               </div>
               {!readOnly ? (
                 <EditableText
                   value={data.years_of_experience ? String(data.years_of_experience) : ''}
-                  placeholder="Ej. 8"
+                  placeholder={L.addYears}
                   onSave={v => update({ years_of_experience: v ? parseInt(v) || null : null })}
                   className="text-white/90 text-xs"
                   inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
               ) : (
                 <p className="text-white/90">
-                  {data.years_of_experience ? data.years_of_experience + ' años' : '—'}
+                  {data.years_of_experience ? `${data.years_of_experience} ${L.yearsUnit}` : '—'}
                 </p>
               )}
             </div>
@@ -939,13 +989,13 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             {(data.certifications?.length > 0 || !readOnly) && (
               <div>
                 <div className="flex items-center gap-1 text-navy-300 mb-1 uppercase tracking-wider" style={{ fontSize: '9px' }}>
-                  <Award size={10} /> Certificaciones
+                  <Award size={10} /> {L.certifications}
                 </div>
                 {!readOnly ? (
                   <TagEditor
                     tags={data.certifications ?? []}
                     onUpdate={t => update({ certifications: t })}
-                    placeholder="Agregar certificación..."
+                    placeholder={L.addCert}
                   />
                 ) : (
                   <p className="text-white/90">{data.certifications?.join(', ') || '—'}</p>
@@ -958,11 +1008,11 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
         {/* Right panel */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Bio */}
-          <Section icon={<FileText size={13} />} title="Resumen Profesional">
+          <Section icon={<FileText size={13} />} title={L.summary}>
             {!readOnly ? (
               <EditableText
                 value={displayData.bio ?? ''}
-                placeholder="Escribe un resumen profesional..."
+                placeholder={L.addSummary}
                 onSave={v => update({ bio: v || null })}
                 multiline
                 className="text-slate-700 leading-relaxed"
@@ -977,10 +1027,10 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               fields always reflect the latest enrichedProfile even if data was
               initialized before Kimble enrichment was available. */}
           {(profile.industry_experience?.length || profile.kimble_service_areas?.length) ? (
-            <Section icon={<Briefcase size={13} />} title="Experiencia por Industria y Área (Kimble)">
+            <Section icon={<Briefcase size={13} />} title={L.industryArea}>
               {profile.industry_experience?.length ? (
                 <div className="mb-2">
-                  <p className="text-xs text-slate-400 mb-1">Industrias</p>
+                  <p className="text-xs text-slate-400 mb-1">{L.industries}</p>
                   <div className="flex flex-wrap gap-1">
                     {profile.industry_experience.map(ind => (
                       <span key={ind} className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs text-blue-700">{ind}</span>
@@ -990,7 +1040,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               ) : null}
               {profile.kimble_service_areas?.length ? (
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">Áreas de Servicio</p>
+                  <p className="text-xs text-slate-400 mb-1">{L.serviceAreas}</p>
                   <div className="flex flex-wrap gap-1">
                     {profile.kimble_service_areas.map(area => (
                       <span key={area} className="rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs text-bip-red">{area}</span>
@@ -1002,7 +1052,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           ) : null}
 
           {/* Skills */}
-          <Section icon={<Wrench size={13} />} title="Competencias">
+          <Section icon={<Wrench size={13} />} title={L.skills}>
             {!readOnly ? (
               <TagEditor
                 tags={data.skills}
@@ -1020,7 +1070,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           </Section>
 
           {/* Experience */}
-          <Section icon={<Briefcase size={13} />} title="Experiencia Profesional">
+          <Section icon={<Briefcase size={13} />} title={L.experience}>
             {!readOnly ? (
               <ExperienceEditor
                 entries={displayData.experience ?? []}
@@ -1029,7 +1079,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             ) : (
               <div className="space-y-2.5">
                 {(displayData.experience ?? []).length === 0 ? (
-                  <p className="text-sm text-slate-400 italic">Sin experiencia registrada.</p>
+                  <p className="text-sm text-slate-400 italic">{L.noExperience}</p>
                 ) : (
                   (displayData.experience ?? []).map(exp => (
                     <div key={exp.id} className="flex gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
