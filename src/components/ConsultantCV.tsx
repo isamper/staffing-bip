@@ -778,7 +778,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Language toggle */}
+          {/* Language toggle — clicking EN translates if no EN content exists yet */}
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
             <button
               onClick={() => setActiveLang('es')}
@@ -787,33 +787,21 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               ES
             </button>
             <button
-              onClick={() => setActiveLang('en')}
-              className={`px-2.5 py-1.5 font-medium transition-colors ${activeLang === 'en' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => hasEnContent ? setActiveLang('en') : (!readOnly ? handleTranslate('es→en') : undefined)}
+              disabled={translating}
+              title={!hasEnContent && !readOnly ? 'Haz clic para traducir al inglés' : undefined}
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-60 ${
+                activeLang === 'en' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'
+              }`}
             >
-              EN {hasEnContent && <span className="ml-0.5 opacity-60">✓</span>}
+              {translating
+                ? <><Loader2 size={10} className="animate-spin" /> EN</>
+                : hasEnContent
+                  ? <>EN <span className="opacity-50 text-[10px]">✓</span></>
+                  : <>EN {!readOnly && <Languages size={10} className="opacity-50" />}</>
+              }
             </button>
           </div>
-          {/* Translate button */}
-          {!readOnly && activeLang === 'es' && (
-            <button
-              onClick={() => handleTranslate('es→en')}
-              disabled={translating}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-navy-300 hover:text-navy-700 transition-colors disabled:opacity-50"
-            >
-              {translating ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
-              {translating ? 'Traduciendo…' : 'Traducir al inglés'}
-            </button>
-          )}
-          {!readOnly && activeLang === 'en' && hasEnContent && (
-            <button
-              onClick={() => handleTranslate('en→es')}
-              disabled={translating}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-navy-300 hover:text-navy-700 transition-colors disabled:opacity-50"
-            >
-              {translating ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
-              {translating ? 'Traduciendo…' : 'Traducir al español'}
-            </button>
-          )}
           <button
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors"
