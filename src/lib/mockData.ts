@@ -411,6 +411,7 @@ export const mockConsultants: Profile[] = [
   c('c70', 'Juan Pablo Linares',      'Consultor', 'Consultant', [], null),
   c('c71', 'María Constanza Cabrera', 'Consultor', 'Consultant', [], null),
   c('c72', 'Santiago Luengas',        'Consultor', 'Consultant', [], null),
+  c('c73', 'Jaime Aragón',            'Gerente Senior', 'Senior Manager', [], null),
 ]
 
 // Projects — sourced from SAP-Kimble export
