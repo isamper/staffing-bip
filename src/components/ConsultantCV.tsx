@@ -564,6 +564,8 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
 
   const activeVersion = cvVersions.find(v => v.id === activeVersionId) ?? cvVersions[0]
   const hasEnContent = !!(activeVersion?.bio_en || activeVersion?.experience_en?.length)
+  // True when EN translation exists but languages_en is missing (old translation pre-feature)
+  const languagesNeedsTranslation = hasEnContent && !!data.languages && activeVersion?.languages_en == null
 
   // Merge active version + language into displayData for rendering
   const displayBio =
@@ -854,7 +856,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             {/* EN tab */}
             <button
               onClick={() => {
-                if (!readOnly && dirtyLang === 'es' && hasEnContent) handleTranslate('es→en')
+                if (!readOnly && (dirtyLang === 'es' || languagesNeedsTranslation) && hasEnContent) handleTranslate('es→en')
                 else if (hasEnContent) setActiveLang('en')
                 else if (!readOnly) handleTranslate('es→en')
               }}
@@ -977,9 +979,21 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
               </div>
               {!readOnly ? (
                 <EditableText
-                  value={data.languages ?? ''}
+                  value={displayLanguages ?? ''}
                   placeholder={L.addLanguages}
-                  onSave={v => update({ languages: v || null })}
+                  onSave={v => {
+                    if (activeLang === 'en') {
+                      // Save translated value into the active version
+                      const updatedVersions = cvVersions.map(ver =>
+                        ver.id === activeVersionId ? { ...ver, languages_en: v || null } : ver
+                      )
+                      setCvVersions(updatedVersions)
+                      setDirtyLang('en')
+                      saveVersionsAndNotify(updatedVersions)
+                    } else {
+                      update({ languages: v || null })
+                    }
+                  }}
                   className="text-white/90 text-xs"
                   inputClassName="bg-navy-700 text-white border-navy-500 text-xs"
                 />
