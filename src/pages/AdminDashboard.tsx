@@ -503,16 +503,20 @@ export default function AdminDashboard() {
         return [a]
       })
 
-    // On explicit import: Kimble is always the source of truth — replace all
-    // Kimble-covered assignments. Manual assignments for other projects are kept.
+    // On explicit import: replace only Kimble-sourced assignments for projects in this file.
+    // Manual assignments (id starts with 'manual-' or 'a') are always preserved — they
+    // represent intentional additions (partial support, extra help) that Kimble doesn't track.
     // On mount (skipAssignments=true): skip entirely; assignments come from localStorage.
     if (!opts.skipAssignments) {
       setAssignments((prev) => {
         const kimbleProjectIds = new Set(result.projects.map(
           (kp) => numericToExistingId.get(numericCode(kp.id)) ?? kp.id,
         ))
-        // Drop any existing assignment (manual or kimble) for projects in this Kimble file
-        const kept = prev.filter((a) => !kimbleProjectIds.has(a.project_id))
+        // Drop only Kimble-generated assignments for projects in this Kimble file.
+        // Keep manual assignments regardless of which project they belong to.
+        const kept = prev.filter(
+          (a) => !kimbleProjectIds.has(a.project_id) || !a.id.startsWith('kimble-'),
+        )
         const updated = [...kept, ...newAssignments]
         saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
         return updated
