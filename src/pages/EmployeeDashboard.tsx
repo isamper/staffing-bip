@@ -135,7 +135,7 @@ const CV_DISMISSED_KEY     = 'bench_cv_dismissed_v1'
 const EDITABLE_PROFILE_KEYS: (keyof Profile)[] = [
   'role_title', 'seniority',
   'bio', 'education', 'languages', 'years_of_experience',
-  'certifications', 'experience', 'skills', 'photo_url',
+  'certifications', 'experience', 'skills', 'photo_url', 'cv_versions',
 ]
 
 function loadSavedProfileEdits(): Record<string, Partial<Profile>> {

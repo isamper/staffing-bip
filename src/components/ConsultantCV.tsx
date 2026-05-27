@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import {
   Pencil, X, Check, Download, FileText, Presentation,
   GraduationCap, Globe, Briefcase, Award, Wrench, Plus, Camera, ZoomIn, ZoomOut,
+  Languages, Loader2,
 } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
@@ -36,7 +37,7 @@ const TITLE_TO_SENIORITY: Record<string, Profile['seniority']> = {
   'Consultor': 'Consultant',
   'Practicante': 'Intern',
 }
-import type { Profile, ProjectAssignment, Project, ExperienceEntry } from '@/lib/types'
+import type { Profile, ProjectAssignment, Project, ExperienceEntry, CVVersion } from '@/lib/types'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -393,9 +394,23 @@ const PRINT_STYLE = `
 }
 `
 
+// ── Translation (MyMemory free API — no key required) ────────────────────────
+
+async function myMemoryTranslate(text: string, from: 'es' | 'en' = 'es', to: 'es' | 'en' = 'en'): Promise<string> {
+  if (!text?.trim()) return text ?? ''
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`
+    const res = await fetch(url)
+    const json = await res.json() as { responseData?: { translatedText?: string } }
+    return json.responseData?.translatedText ?? text
+  } catch {
+    return text
+  }
+}
+
 // ── PPTX export (pptxgenjs) ───────────────────────────────────────────────────
 
-async function exportToPptx(profile: Profile) {
+async function exportToPptx(profile: Profile, versionLabel?: string) {
   const PptxGenJS = (await import('pptxgenjs')).default
   const pptx = new PptxGenJS()
   pptx.layout = 'LAYOUT_16x9'
@@ -503,7 +518,8 @@ async function exportToPptx(profile: Profile) {
   slide.addShape(pptx.ShapeType.rect, { x: 0, y: 7.1, w: 10, h: 0.4, fill: { color: NAVY } })
   slide.addText('bench. — Bip Consulting', { x: 0.3, y: 7.15, w: 5, h: 0.3, fontSize: 8, color: WHITE })
 
-  await pptx.writeFile({ fileName: `CV_${profile.name.replace(/\s+/g, '_')}.pptx` })
+  const suffix = versionLabel && versionLabel !== 'General' ? `_${versionLabel.replace(/\s+/g, '_')}` : ''
+  await pptx.writeFile({ fileName: `CV_${profile.name.replace(/\s+/g, '_')}${suffix}.pptx` })
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -522,6 +538,118 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
   const printRef = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  // ── CV Versions ─────────────────────────────────────────────────────────────
+  const [cvVersions, setCvVersions] = useState<CVVersion[]>(() => {
+    const existing = profile.cv_versions ?? []
+    if (existing.length > 0) return existing
+    // Auto-create "General" version from existing profile fields
+    return [{
+      id: 'v-general',
+      label: 'General',
+      bio_es: profile.bio ?? null,
+      bio_en: null,
+      experience_es: profile.experience ?? [],
+      experience_en: [],
+    }]
+  })
+  const [activeVersionId, setActiveVersionId] = useState<string>(
+    () => (profile.cv_versions ?? [])[0]?.id ?? 'v-general',
+  )
+  const [activeLang, setActiveLang] = useState<'es' | 'en'>('es')
+  const [translating, setTranslating] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
+
+  const activeVersion = cvVersions.find(v => v.id === activeVersionId) ?? cvVersions[0]
+  const hasEnContent = !!(activeVersion?.bio_en || activeVersion?.experience_en?.length)
+
+  // Merge active version + language into displayData for rendering
+  const displayBio =
+    activeLang === 'en' && activeVersion?.bio_en != null
+      ? activeVersion.bio_en
+      : activeVersion?.bio_es ?? data.bio
+  const displayExperience =
+    activeLang === 'en' && (activeVersion?.experience_en?.length ?? 0) > 0
+      ? activeVersion!.experience_en
+      : activeVersion?.experience_es ?? data.experience ?? []
+  const displayData: Profile = { ...data, bio: displayBio ?? null, experience: displayExperience }
+
+  // ── Version management helpers ────────────────────────────────────────────
+  function saveVersionsAndNotify(versions: CVVersion[], sharedPatch?: Partial<Profile>) {
+    setCvVersions(versions)
+    const updated = { ...data, ...sharedPatch, cv_versions: versions }
+    setData(updated)
+    onUpdate?.(updated)
+  }
+
+  function addVersion() {
+    const label = window.prompt('Nombre de la nueva versión (ej. SAP Expert, Ciberseguridad):')
+    if (!label?.trim()) return
+    const base = cvVersions.find(v => v.id === activeVersionId)
+    const newV: CVVersion = {
+      id: `v-${Date.now()}`,
+      label: label.trim(),
+      bio_es: base?.bio_es ?? data.bio ?? null,
+      bio_en: null,
+      experience_es: base?.experience_es ?? data.experience ?? [],
+      experience_en: [],
+    }
+    const updated = [...cvVersions, newV]
+    setCvVersions(updated)
+    setActiveVersionId(newV.id)
+    setActiveLang('es')
+    saveVersionsAndNotify(updated)
+  }
+
+  function deleteVersion(id: string) {
+    if (cvVersions.length <= 1) return
+    const updated = cvVersions.filter(v => v.id !== id)
+    if (id === activeVersionId) setActiveVersionId(updated[0].id)
+    saveVersionsAndNotify(updated)
+  }
+
+  function commitRename(id: string) {
+    if (!renameDraft.trim()) { setRenamingId(null); return }
+    const updated = cvVersions.map(v => v.id === id ? { ...v, label: renameDraft.trim() } : v)
+    setRenamingId(null)
+    saveVersionsAndNotify(updated)
+  }
+
+  // ── Translation ───────────────────────────────────────────────────────────
+  async function handleTranslate(direction: 'es→en' | 'en→es') {
+    if (!activeVersion || translating) return
+    setTranslating(true)
+    try {
+      const [from, to] = direction === 'es→en' ? ['es', 'en'] as const : ['en', 'es'] as const
+      const srcBio = direction === 'es→en' ? activeVersion.bio_es : activeVersion.bio_en
+      const srcExp = direction === 'es→en' ? activeVersion.experience_es : activeVersion.experience_en
+
+      const translatedBio = srcBio ? await myMemoryTranslate(srcBio, from, to) : null
+      const translatedExp: ExperienceEntry[] = await Promise.all(
+        (srcExp ?? []).map(async (exp) => ({
+          ...exp,
+          description: exp.description
+            ? await myMemoryTranslate(exp.description, from, to)
+            : exp.description,
+        }))
+      )
+      const patch: Partial<CVVersion> =
+        direction === 'es→en'
+          ? { bio_en: translatedBio, experience_en: translatedExp }
+          : { bio_es: translatedBio, experience_es: translatedExp }
+
+      const updated = cvVersions.map(v => v.id === activeVersionId ? { ...v, ...patch } : v)
+      setCvVersions(updated)
+      setActiveLang(to)
+      saveVersionsAndNotify(updated)
+    } catch (err) {
+      console.error('Translation error:', err)
+    } finally {
+      setTranslating(false)
+    }
+  }
+
+  // ── Photo ─────────────────────────────────────────────────────────────────
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -531,14 +659,37 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
     e.target.value = ''
   }
 
+  // ── Update — routes bio/experience to the active CV version ──────────────
   const update = (patch: Partial<Profile>) => {
-    const updated = { ...data, ...patch }
+    const versionPatch: Partial<CVVersion> = {}
+    const profilePatch: Partial<Profile> = {}
+
+    for (const [key, value] of Object.entries(patch)) {
+      if (key === 'bio') {
+        if (activeLang === 'es') versionPatch.bio_es = value as string | null
+        else versionPatch.bio_en = value as string | null
+      } else if (key === 'experience') {
+        if (activeLang === 'es') versionPatch.experience_es = value as ExperienceEntry[]
+        else versionPatch.experience_en = value as ExperienceEntry[]
+      } else {
+        (profilePatch as Record<string, unknown>)[key] = value
+      }
+    }
+
+    let updatedVersions = cvVersions
+    if (Object.keys(versionPatch).length > 0) {
+      updatedVersions = cvVersions.map(v =>
+        v.id === activeVersionId ? { ...v, ...versionPatch } : v,
+      )
+      setCvVersions(updatedVersions)
+    }
+
+    const updated = { ...data, ...profilePatch, cv_versions: updatedVersions }
     setData(updated)
     onUpdate?.(updated)
   }
 
   const handlePrint = () => {
-    // inject print style if needed
     if (!document.getElementById('cv-print-style')) {
       const s = document.createElement('style')
       s.id = 'cv-print-style'
@@ -558,14 +709,111 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
       />
     )}
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* CV Version tabs */}
+      <div className="cv-no-print flex items-center gap-1 px-4 pt-3 pb-0 overflow-x-auto">
+        {cvVersions.map((v, i) => (
+          <div
+            key={v.id}
+            onClick={() => { setActiveVersionId(v.id); setActiveLang('es') }}
+            className={`group relative flex items-center gap-1 rounded-t-lg px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors select-none ${
+              v.id === activeVersionId
+                ? 'bg-navy-800 text-white'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-navy-800'
+            }`}
+          >
+            {renamingId === v.id ? (
+              <input
+                className="w-28 bg-transparent outline-none text-xs font-medium"
+                value={renameDraft}
+                autoFocus
+                onChange={e => setRenameDraft(e.target.value)}
+                onBlur={() => commitRename(v.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitRename(v.id)
+                  if (e.key === 'Escape') setRenamingId(null)
+                }}
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                onDoubleClick={!readOnly ? (e) => { e.stopPropagation(); setRenamingId(v.id); setRenameDraft(v.label) } : undefined}
+                title={!readOnly ? 'Doble clic para renombrar' : undefined}
+              >
+                {v.label}
+              </span>
+            )}
+            {/* Delete button (hidden for first tab, only in edit mode) */}
+            {!readOnly && i > 0 && renamingId !== v.id && (
+              <button
+                onClick={e => { e.stopPropagation(); deleteVersion(v.id) }}
+                className={`ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${
+                  v.id === activeVersionId ? 'text-white/60 hover:text-white' : 'text-slate-400 hover:text-red-500'
+                }`}
+              >
+                <X size={10} />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button
+            onClick={addVersion}
+            className="flex items-center gap-1 rounded-t-lg px-2.5 py-1.5 text-xs text-slate-400 hover:text-navy-600 hover:bg-slate-100 transition-colors"
+          >
+            <Plus size={11} /> Nueva versión
+          </button>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="cv-no-print flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <FileText size={14} className="text-navy-600" />
           <span className="text-sm font-medium text-slate-700">Hoja de Vida</span>
-          {!readOnly && <span className="text-xs text-slate-400 ml-1">· haz clic en cualquier campo para editar</span>}
+          {!readOnly && (
+            <span className="text-xs text-slate-400 ml-1">
+              · haz clic en cualquier campo para editar
+              {activeLang === 'en' && <span className="ml-1 text-navy-500 font-medium">(EN)</span>}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Language toggle */}
+          <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+            <button
+              onClick={() => setActiveLang('es')}
+              className={`px-2.5 py-1.5 font-medium transition-colors ${activeLang === 'es' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              ES
+            </button>
+            <button
+              onClick={() => setActiveLang('en')}
+              className={`px-2.5 py-1.5 font-medium transition-colors ${activeLang === 'en' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              EN {hasEnContent && <span className="ml-0.5 opacity-60">✓</span>}
+            </button>
+          </div>
+          {/* Translate button */}
+          {!readOnly && activeLang === 'es' && (
+            <button
+              onClick={() => handleTranslate('es→en')}
+              disabled={translating}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-navy-300 hover:text-navy-700 transition-colors disabled:opacity-50"
+            >
+              {translating ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
+              {translating ? 'Traduciendo…' : 'Traducir al inglés'}
+            </button>
+          )}
+          {!readOnly && activeLang === 'en' && hasEnContent && (
+            <button
+              onClick={() => handleTranslate('en→es')}
+              disabled={translating}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-navy-300 hover:text-navy-700 transition-colors disabled:opacity-50"
+            >
+              {translating ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
+              {translating ? 'Traduciendo…' : 'Traducir al español'}
+            </button>
+          )}
           <button
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors"
@@ -573,7 +821,7 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
             <Download size={12} /> PDF
           </button>
           <button
-            onClick={() => exportToPptx(data)}
+            onClick={() => exportToPptx(displayData, activeVersion?.label)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-navy-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-700 transition-colors"
           >
             <Presentation size={12} /> PowerPoint
@@ -725,14 +973,14 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           <Section icon={<FileText size={13} />} title="Resumen Profesional">
             {!readOnly ? (
               <EditableText
-                value={data.bio ?? ''}
+                value={displayData.bio ?? ''}
                 placeholder="Escribe un resumen profesional..."
                 onSave={v => update({ bio: v || null })}
                 multiline
                 className="text-slate-700 leading-relaxed"
               />
             ) : (
-              <p className="text-sm text-slate-700 leading-relaxed">{data.bio || '—'}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{displayData.bio || '—'}</p>
             )}
           </Section>
 
@@ -787,15 +1035,15 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
           <Section icon={<Briefcase size={13} />} title="Experiencia Profesional">
             {!readOnly ? (
               <ExperienceEditor
-                entries={data.experience ?? []}
+                entries={displayData.experience ?? []}
                 onUpdate={exp => update({ experience: exp })}
               />
             ) : (
               <div className="space-y-2.5">
-                {(data.experience ?? []).length === 0 ? (
+                {(displayData.experience ?? []).length === 0 ? (
                   <p className="text-sm text-slate-400 italic">Sin experiencia registrada.</p>
                 ) : (
-                  (data.experience ?? []).map(exp => (
+                  (displayData.experience ?? []).map(exp => (
                     <div key={exp.id} className="flex gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
                       <div className="w-1 shrink-0 rounded-full bg-navy-600 mt-0.5" />
                       <div>

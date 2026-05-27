@@ -33,6 +33,7 @@ export interface Profile {
   years_of_experience: number | null
   certifications: string[]
   experience: ExperienceEntry[]
+  cv_versions?: CVVersion[]   // named CV versions with per-language content
   // Kimble-derived fields (set on import)
   annual_dedication_pct?: number   // sum of Kimble usage days / 243 Colombian work days × 100
   industry_experience?: string[]   // from historic Kimble data
@@ -45,6 +46,20 @@ export interface ExperienceEntry {
   client: string       // client or company
   period: string       // e.g. "2023 – 2024"
   description: string  // key activities / achievements
+}
+
+/**
+ * A named CV version (e.g. "General", "SAP Expert", "Ciberseguridad").
+ * bio and experience are stored per language; all other fields are shared
+ * across versions (education, languages, skills, certifications).
+ */
+export interface CVVersion {
+  id: string
+  label: string                  // display name / tag
+  bio_es: string | null
+  bio_en: string | null
+  experience_es: ExperienceEntry[]
+  experience_en: ExperienceEntry[]  // same IDs as experience_es, descriptions translated
 }
 
 export interface Position {
