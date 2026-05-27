@@ -503,20 +503,27 @@ export default function AdminDashboard() {
         return [a]
       })
 
-    // On explicit import: replace only Kimble-sourced assignments for projects in this file.
-    // Manual assignments (id starts with 'manual-' or 'a') are always preserved — they
-    // represent intentional additions (partial support, extra help) that Kimble doesn't track.
+    // On explicit import: Kimble is source of truth for any (project, consultant) pair it covers.
+    // - Kimble-generated assignments for projects in this file → always replaced.
+    // - Manual assignments where Kimble now covers the same (project, consultant) → replaced by Kimble.
+    // - Manual assignments for consultants Kimble does NOT mention in that project → kept as-is.
     // On mount (skipAssignments=true): skip entirely; assignments come from localStorage.
     if (!opts.skipAssignments) {
       setAssignments((prev) => {
         const kimbleProjectIds = new Set(result.projects.map(
           (kp) => numericToExistingId.get(numericCode(kp.id)) ?? kp.id,
         ))
-        // Drop only Kimble-generated assignments for projects in this Kimble file.
-        // Keep manual assignments regardless of which project they belong to.
-        const kept = prev.filter(
-          (a) => !kimbleProjectIds.has(a.project_id) || !a.id.startsWith('kimble-'),
+        // Build a set of (project_id, consultant_id) pairs covered by new Kimble assignments
+        const kimbleCovered = new Set(
+          newAssignments.map((a) => `${a.project_id}::${a.consultant_id}`),
         )
+        const kept = prev.filter((a) => {
+          // Always drop old Kimble assignments for projects in this file
+          if (kimbleProjectIds.has(a.project_id) && a.id.startsWith('kimble-')) return false
+          // Drop manual assignments if Kimble now covers the same person+project
+          if (kimbleCovered.has(`${a.project_id}::${a.consultant_id}`)) return false
+          return true
+        })
         const updated = [...kept, ...newAssignments]
         saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
         return updated
