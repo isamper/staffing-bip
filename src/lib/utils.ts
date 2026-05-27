@@ -5,6 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Derive the canonical @bip-group.com email from a display name.
+ * Takes first word + last word, strips accents, lowercases.
+ * e.g. "Maria Camila Coronado" → "maria.coronado@bip-group.com"
+ */
+export function nameToEmail(name: string): string {
+  const parts = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .split(' ')
+    .filter(Boolean)
+  return `${parts[0]}.${parts[parts.length - 1]}@bip-group.com`
+}
+
 export function getInitials(name: string): string {
   return name
     .split(' ')

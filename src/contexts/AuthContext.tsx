@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase, isDemoMode } from '@/lib/supabase'
-import { DEMO_USERS, mockConsultants } from '@/lib/mockData'
+import { DEMO_USERS, mockConsultants, EMAIL_OVERRIDES } from '@/lib/mockData'
+import { nameToEmail } from '@/lib/utils'
 import type { Profile } from '@/lib/types'
 
 interface SignUpData {
@@ -24,27 +25,21 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 // Store only the email — never the full profile object, which goes stale.
 const DEMO_SESSION_KEY = 'bench_demo_email'
 
-function nameToEmail(name: string): string {
-  const parts = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .split(' ')
-    .filter(Boolean)
-  return `${parts[0]}.${parts[parts.length - 1]}@bip-group.com`
-}
-
 function profileFromEmail(email: string): Profile | null {
-  // Named admin/HR users first
+  // 1. Named admin/HR users (DEMO_USERS keyed by email)
   const demoEntry = DEMO_USERS[email as keyof typeof DEMO_USERS]
   if (demoEntry) return demoEntry.profile
 
-  // Regular consultants matched by firstname.lastname@bip-group.com
-  if (email.endsWith('@bip-group.com')) {
-    return mockConsultants.find((c) => nameToEmail(c.name) === email) ?? null
+  if (!email.endsWith('@bip-group.com')) return null
+
+  // 2. Email overrides — real emails that don't match the derived pattern
+  const overrideId = EMAIL_OVERRIDES[email]
+  if (overrideId) {
+    return mockConsultants.find((c) => c.id === overrideId) ?? null
   }
 
-  return null
+  // 3. Derive email from name and match
+  return mockConsultants.find((c) => nameToEmail(c.name) === email) ?? null
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

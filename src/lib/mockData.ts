@@ -412,7 +412,26 @@ export const mockConsultants: Profile[] = [
   c('c71', 'María Constanza Cabrera', 'Consultor', 'Consultant', [], null),
   c('c72', 'Santiago Luengas',        'Consultor', 'Consultant', [], null),
   c('c73', 'Jaime Aragón',            'Gerente Senior', 'Senior Manager', [], null),
+  // ── New hires 2026 ────────────────────────────────────────────────────────
+  c('c74', 'Melissa Almeida',         'Consultor', 'Consultant', [], null),
+  c('c75', 'Sara Lopez',              'Consultor', 'Consultant', [], null),
+  c('c76', 'Mateo Zarama',            'Consultor', 'Consultant', [], null),
+  c('c77', 'Alejandro Abdel',         'Consultor', 'Consultant', [], null),
 ]
+
+/**
+ * Overrides for consultants whose real @bip-group.com email does NOT match
+ * the derived "firstname.lastname" pattern.  Map: real email → consultant id.
+ */
+export const EMAIL_OVERRIDES: Record<string, string> = {
+  'camila.coronado@bip-group.com':  'c28',   // Maria Camila Coronado  (derived: maria.coronado)
+  'maria.delima@bip-group.com':     'c29',   // Maria Carolina De Lima (derived: maria.lima)
+  'felipe.patino@bip-group.com':    'c37',   // Juan Felipe Patiño     (derived: juan.patino)
+  'manuel.perez@bip-group.com':     'c57',   // Juan Manuel Perez      (derived: juan.perez)
+  // HR admins
+  'carla.villaverde@bip-group.com': 'hr_carla',
+  'martha.martinez@bip-group.com':  'hr_martha',
+}
 
 // Projects — sourced from SAP-Kimble export
 export const mockProjects: Project[] = [

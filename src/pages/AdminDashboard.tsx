@@ -17,10 +17,12 @@ import {
   mockVacationRequests,
   mockAssignments,
   mockLikes,
+  EMAIL_OVERRIDES,
 } from '@/lib/mockData'
 import { matchConsultants, matchConsultantsForPosition, findReplacements } from '@/lib/matching'
 import { MAX_CARGABILITY } from '@/lib/constants'
-import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
+import { getInitials, formatDate, isAvailableNow, nameToEmail } from '@/lib/utils'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import PeopleTab from '@/components/PeopleTab'
 import AutoStaffingPlan from '@/components/AutoStaffingPlan'
 import KimbleImportModal from '@/components/KimbleImportModal'
@@ -426,6 +428,31 @@ export default function AdminDashboard() {
         }
       }
     } catch { /* ignore */ }
+
+    // 4. Option B: fetch Supabase profiles and merge new hires (people who signed up
+    //    directly and whose email isn't covered by mockConsultants or EMAIL_OVERRIDES).
+    if (!isDemoMode && supabase) {
+      const knownEmails = new Set([
+        ...mockConsultants.map((c) => nameToEmail(c.name)),
+        ...Object.keys(EMAIL_OVERRIDES),
+      ])
+      supabase
+        .from('profiles')
+        .select('*')
+        .then(({ data }) => {
+          if (!data) return
+          const newHires = data.filter(
+            (p) => p.email && !knownEmails.has(p.email),
+          ) as Profile[]
+          if (newHires.length > 0) {
+            setConsultants((prev) => {
+              // Avoid duplicates if called multiple times
+              const existingIds = new Set(prev.map((c) => c.id))
+              return [...prev, ...newHires.filter((h) => !existingIds.has(h.id))]
+            })
+          }
+        })
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleKimbleImport(result: KimbleImportResult, opts: { skipAssignments?: boolean } = {}) {
