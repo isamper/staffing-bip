@@ -388,6 +388,8 @@ export default function AdminDashboard() {
   const [addEndDate, setAddEndDate] = useState('')
   const today = new Date()
   const in30 = new Date(today.getTime() + 30 * 86400000)
+  const todayStr = today.toISOString().split('T')[0]
+  const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split('T')[0]
 
   // On mount: restore projects + consultant metadata from last Kimble import.
   // If bench_assignments_v1 already exists (user has persisted state), skip
@@ -588,10 +590,10 @@ export default function AdminDashboard() {
   const assignedToSelected = assignments.filter((a) => {
     if (a.project_id !== selectedProject?.id) return false
     // For ended projects show everyone ever assigned (historical view).
-    // For active/upcoming projects show only who is staffed TODAY.
+    // For active/upcoming projects show all assignments that haven't ended yet
+    // (including future-start ones — they are confirmed on this project).
     if (!isEndedProject) {
       if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
-      if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
     }
     return true
   })
@@ -761,11 +763,11 @@ export default function AdminDashboard() {
                     <label className="text-xs font-medium text-slate-500 mb-1 block">Dedicación (%)</label>
                     <Input
                       type="number"
-                      min={10}
+                      min={0}
                       max={100}
                       step={10}
                       value={addDedication}
-                      onChange={(e) => setAddDedication(Number(e.target.value))}
+                      onChange={(e) => setAddDedication(Math.min(100, Math.max(0, Number(e.target.value))))}
                       className="h-8 text-sm"
                     />
                   </div>
@@ -774,9 +776,9 @@ export default function AdminDashboard() {
                     <Input
                       type="date"
                       value={addStartDate}
+                      min={todayStr}
                       onChange={(e) => setAddStartDate(e.target.value)}
                       className="h-8 text-sm"
-                      placeholder={selectedProject?.start_date ?? ''}
                     />
                   </div>
                   <div>
@@ -784,9 +786,9 @@ export default function AdminDashboard() {
                     <Input
                       type="date"
                       value={addEndDate}
+                      min={tomorrowStr}
                       onChange={(e) => setAddEndDate(e.target.value)}
                       className="h-8 text-sm"
-                      placeholder={selectedProject?.end_date ?? ''}
                     />
                   </div>
                 </div>
@@ -1058,11 +1060,11 @@ export default function AdminDashboard() {
                                 <label className="text-xs text-slate-400 mb-1 block">Dedicación (%)</label>
                                 <Input
                                   type="number"
-                                  min={10}
+                                  min={0}
                                   max={100}
                                   step={10}
                                   value={addDedication}
-                                  onChange={(e) => setAddDedication(Number(e.target.value))}
+                                  onChange={(e) => setAddDedication(Math.min(100, Math.max(0, Number(e.target.value))))}
                                   className="h-7 text-sm"
                                 />
                               </div>
@@ -1071,6 +1073,7 @@ export default function AdminDashboard() {
                                 <Input
                                   type="date"
                                   value={addStartDate}
+                                  min={todayStr}
                                   onChange={(e) => setAddStartDate(e.target.value)}
                                   className="h-7 text-sm"
                                 />
@@ -1080,6 +1083,7 @@ export default function AdminDashboard() {
                                 <Input
                                   type="date"
                                   value={addEndDate}
+                                  min={tomorrowStr}
                                   onChange={(e) => setAddEndDate(e.target.value)}
                                   className="h-7 text-sm"
                                 />

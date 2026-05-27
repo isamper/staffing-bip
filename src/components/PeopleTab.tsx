@@ -17,8 +17,9 @@ interface ProjectInfo {
   name: string
   dedication: number
   endDate: string
-  startDate: string   // when the consultant started on this project (for tenure badge)
+  startDate: string   // when the consultant starts on this project
   past: boolean       // true when the assignment has already ended
+  upcoming?: boolean  // true when the assignment starts in the future
 }
 
 interface ConsultantStats {
@@ -145,15 +146,21 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
                   className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
                     p.past
                       ? 'bg-slate-50 border-slate-200 text-slate-400'
+                      : p.upcoming
+                      ? 'bg-amber-50 border-amber-200 text-amber-700'
                       : 'bg-navy-50 border-navy-100 text-navy-700'
                   }`}
                 >
                   <span className="font-medium">{p.dedication}%</span>
-                  <span className={p.past ? 'text-slate-400' : 'text-navy-500'}>{p.name}</span>
-                  <span className={p.past ? 'text-slate-300' : 'text-navy-300'}>· {formatDate(p.endDate)}</span>
-                  <span className={`ml-0.5 rounded-full border px-1.5 py-px text-xs font-semibold ${tenureColor}`}>
-                    {months}mo
+                  <span className={p.past ? 'text-slate-400' : p.upcoming ? 'text-amber-600' : 'text-navy-500'}>{p.name}</span>
+                  <span className={p.past ? 'text-slate-300' : p.upcoming ? 'text-amber-400' : 'text-navy-300'}>
+                    {p.upcoming ? `· desde ${formatDate(p.startDate)}` : `· ${formatDate(p.endDate)}`}
                   </span>
+                  {!p.upcoming && (
+                    <span className={`ml-0.5 rounded-full border px-1.5 py-px text-xs font-semibold ${tenureColor}`}>
+                      {months}mo
+                    </span>
+                  )}
                 </span>
               )
             })}
@@ -275,7 +282,31 @@ export default function PeopleTab({
               }
             : null
         })
-        .filter((x): x is ProjectInfo => x !== null)
+        .filter((x): x is NonNullable<typeof x> => x !== null)
+
+      // Upcoming assignments: start date is in the future
+      const upcomingProjectsInfo: ProjectInfo[] = assignments
+        .filter((a) => {
+          if (a.consultant_id !== c.id) return false
+          if (!a.start_date || new Date(a.start_date + 'T00:00:00') <= today) return false
+          if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+          const proj = projects.find((p) => p.id === a.project_id)
+          return proj ? new Date(proj.end_date) >= today : false
+        })
+        .map((a) => {
+          const proj = projects.find((p) => p.id === a.project_id)
+          return proj
+            ? {
+                name: proj.name,
+                dedication: a.dedication_percentage,
+                endDate: a.end_date ?? proj.end_date,
+                startDate: a.start_date ?? proj.start_date,
+                past: false,
+                upcoming: true,
+              }
+            : null
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null) as ProjectInfo[]
 
       // Past assignments: window has already ended (started but rolled off)
       const pastProjectsInfo: ProjectInfo[] = assignments
@@ -329,7 +360,7 @@ export default function PeopleTab({
         activeBeachTasks,
         pastBeachTasks,
         pastVacations,
-        projectsInfo,
+        projectsInfo: [...projectsInfo, ...upcomingProjectsInfo],
         pastProjectsInfo,
       }
     })
