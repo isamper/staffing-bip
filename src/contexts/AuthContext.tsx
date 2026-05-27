@@ -75,18 +75,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // ── Real Supabase mode ──
+    // Restore session on hard refresh
     supabase!.auth.getSession().then(({ data: { session } }) => {
-      if (session) fetchProfile(session.user.id)
+      if (session?.user) resolveProfile(session.user.id, session.user.email ?? '')
       else setLoading(false)
     })
 
+    // Keep profile in sync with auth state changes (login, logout, invite click, token refresh)
     const { data: listener } = supabase!.auth.onAuthStateChange((_event, session) => {
-      if (session) fetchProfile(session.user.id)
+      if (session?.user) resolveProfile(session.user.id, session.user.email ?? '')
       else { setProfile(null); setLoading(false) }
     })
 
     return () => listener.subscription.unsubscribe()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Resolve the active profile after a successful auth event.
+   *
+   * Strategy (in order):
+   *  1. Try to match the session email against mockConsultants / DEMO_USERS —
+   *     this gives rich profile data (skills, bio, etc.) for the existing 73 team members.
+   *  2. Fall back to the Supabase `profiles` table for new hires who signed up directly.
+   */
+  async function resolveProfile(userId: string, email: string) {
+    const mock = profileFromEmail(email)
+    if (mock) {
+      setProfile(mock)
+      setLoading(false)
+      return
+    }
+    // New hire: profile was created by the DB trigger on signup
+    await fetchProfile(userId)
+  }
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase!
@@ -94,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-    setProfile(data)
+    setProfile(data ?? null)
     setLoading(false)
   }
 
@@ -105,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const p = profileFromEmail(email)
       if (p) {
         setProfile(p)
-        localStorage.setItem(DEMO_SESSION_KEY, email) // store email only — never the profile
+        localStorage.setItem(DEMO_SESSION_KEY, email)
         return { error: null }
       }
 

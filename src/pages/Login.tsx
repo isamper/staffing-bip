@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { isDemoMode } from '@/lib/supabase'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,11 +36,26 @@ export default function Login() {
   const [signUpPassword, setSignUpPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  // Set-password mode (invite link / forgot-password recovery)
+  const [setPasswordMode, setSetPasswordMode] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordSet, setPasswordSet] = useState(false)
+
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [signedUp, setSignedUp] = useState(false)
 
-  if (profile) {
+  // Detect invite / password-recovery redirect from Supabase email link
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=invite') || hash.includes('type=recovery')) {
+      setSetPasswordMode(true)
+    }
+  }, [])
+
+  // Auto-redirect once authenticated — but NOT while setting a new password
+  if (profile && !setPasswordMode) {
     navigate(profile.user_role === 'hr_admin' ? '/admin' : '/employee', { replace: true })
   }
 
@@ -77,6 +92,28 @@ export default function Login() {
     setSignedUp(true)
   }
 
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (newPassword.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return }
+    if (newPassword !== confirmNewPassword) { setError('Las contraseñas no coinciden'); return }
+
+    setLoading(true)
+    const { error } = await supabase!.auth.updateUser({ password: newPassword })
+    setLoading(false)
+
+    if (error) { setError(error.message); return }
+
+    // Clean the URL hash so a page refresh doesn't re-enter this mode
+    window.history.replaceState(null, '', window.location.pathname)
+    setPasswordSet(true)
+
+    // Small delay then redirect
+    setTimeout(() => {
+      navigate(profile?.user_role === 'hr_admin' ? '/admin' : '/employee', { replace: true })
+    }, 1500)
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
@@ -91,34 +128,84 @@ export default function Login() {
 
         <Card>
           <CardHeader>
-            {/* Toggle */}
-            <div className="flex rounded-lg border border-slate-200 p-1 mb-2">
-              <button
-                onClick={() => { setMode('signin'); setError('') }}
-                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                  mode === 'signin' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:text-navy-800'
-                }`}
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => { setMode('signup'); setError('') }}
-                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                  mode === 'signup' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:text-navy-800'
-                }`}
-              >
-                Sign up
-              </button>
-            </div>
-            <CardTitle>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</CardTitle>
-            <CardDescription>
-              {mode === 'signin' ? 'Enter your Bip credentials to continue' : 'Use your @bip-group.com email'}
-            </CardDescription>
+            {/* ── Invite / Recovery mode — no tabs, just set-password form ── */}
+            {setPasswordMode ? (
+              <>
+                <CardTitle>Crea tu contraseña</CardTitle>
+                <CardDescription>
+                  {passwordSet
+                    ? 'Contraseña guardada. Ingresando…'
+                    : 'Elige una contraseña para activar tu cuenta en bench.'}
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                {/* Toggle */}
+                <div className="flex rounded-lg border border-slate-200 p-1 mb-2">
+                  <button
+                    onClick={() => { setMode('signin'); setError('') }}
+                    className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                      mode === 'signin' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:text-navy-800'
+                    }`}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    onClick={() => { setMode('signup'); setError('') }}
+                    className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                      mode === 'signup' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:text-navy-800'
+                    }`}
+                  >
+                    Sign up
+                  </button>
+                </div>
+                <CardTitle>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</CardTitle>
+                <CardDescription>
+                  {mode === 'signin' ? 'Enter your Bip credentials to continue' : 'Use your @bip-group.com email'}
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
 
           <CardContent>
+            {/* ── Set password (invite / recovery) ── */}
+            {setPasswordMode && !passwordSet && (
+              <form onSubmit={handleSetPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Nueva contraseña</Label>
+                  <Input
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Confirmar contraseña</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  />
+                </div>
+                {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Guardando…' : 'Guardar contraseña'}
+                </Button>
+              </form>
+            )}
+
+            {setPasswordMode && passwordSet && (
+              <div className="py-4 text-center">
+                <p className="text-3xl mb-2">✓</p>
+                <p className="font-medium text-navy-800">¡Contraseña guardada!</p>
+                <p className="mt-1 text-sm text-slate-500">Ingresando a tu cuenta…</p>
+              </div>
+            )}
+
             {/* ── Sign In ── */}
-            {mode === 'signin' && (
+            {!setPasswordMode && mode === 'signin' && (
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Email</Label>
@@ -136,7 +223,7 @@ export default function Login() {
             )}
 
             {/* ── Sign Up ── */}
-            {mode === 'signup' && !signedUp && (
+            {!setPasswordMode && mode === 'signup' && !signedUp && (
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
@@ -171,7 +258,7 @@ export default function Login() {
             )}
 
             {/* ── Sign Up Success ── */}
-            {mode === 'signup' && signedUp && (
+            {!setPasswordMode && mode === 'signup' && signedUp && (
               <div className="py-4 text-center">
                 <p className="text-2xl mb-2">✓</p>
                 <p className="font-medium text-navy-800">Account created!</p>
@@ -182,7 +269,7 @@ export default function Login() {
               </div>
             )}
 
-            {isDemoMode && mode === 'signin' && (
+            {isDemoMode && !setPasswordMode && mode === 'signin' && (
               <div className="mt-4 rounded-md bg-slate-50 p-3 text-xs text-slate-500">
                 <p className="mb-1 font-semibold text-slate-600">Demo accounts · password: demo123</p>
                 <p>carla.villaverde@bip-group.com (HR Admin)</p>
