@@ -16,7 +16,10 @@ export function getInitials(name: string): string {
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  // Append T00:00:00 so the date-only string is parsed as local midnight,
+  // not UTC midnight (which shifts the displayed day back by 1 in negative-offset timezones).
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr
+  return new Date(normalized).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
