@@ -42,6 +42,11 @@ export default function Login() {
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [passwordSet, setPasswordSet] = useState(false)
 
+  // Forgot-password request mode
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [signedUp, setSignedUp] = useState(false)
@@ -90,6 +95,22 @@ export default function Login() {
 
     if (error) { setError(error); return }
     setSignedUp(true)
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!forgotEmail.endsWith('@bip-group.com')) {
+      setError('Ingresa tu correo @bip-group.com')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase!.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: 'https://staffing-bip.vercel.app/login',
+    })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setForgotSent(true)
   }
 
   async function handleSetPassword(e: React.FormEvent) {
@@ -204,8 +225,52 @@ export default function Login() {
               </div>
             )}
 
+            {/* ── Forgot password — request form ── */}
+            {!setPasswordMode && forgotMode && !forgotSent && (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Tu correo Bip</Label>
+                  <Input
+                    type="email"
+                    placeholder="firstname.lastname@bip-group.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                  />
+                </div>
+                {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Enviando…' : 'Enviar enlace de recuperación'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setError('') }}
+                  className="w-full text-center text-sm text-slate-500 hover:text-navy-800"
+                >
+                  ← Volver al inicio de sesión
+                </button>
+              </form>
+            )}
+
+            {/* ── Forgot password — success ── */}
+            {!setPasswordMode && forgotMode && forgotSent && (
+              <div className="py-4 text-center">
+                <p className="text-3xl mb-2">✉️</p>
+                <p className="font-medium text-navy-800">Revisa tu correo</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Te enviamos un enlace para restablecer tu contraseña a <span className="font-medium">{forgotEmail}</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(''); setError('') }}
+                  className="mt-4 text-sm text-navy-800 underline"
+                >
+                  Volver al inicio de sesión
+                </button>
+              </div>
+            )}
+
             {/* ── Sign In ── */}
-            {!setPasswordMode && mode === 'signin' && (
+            {!setPasswordMode && !forgotMode && mode === 'signin' && (
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Email</Label>
@@ -219,11 +284,20 @@ export default function Login() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing in…' : 'Sign in'}
                 </Button>
+                {!isDemoMode && (
+                  <button
+                    type="button"
+                    onClick={() => { setForgotMode(true); setForgotEmail(email); setError('') }}
+                    className="w-full text-center text-sm text-slate-500 hover:text-navy-800"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
               </form>
             )}
 
             {/* ── Sign Up ── */}
-            {!setPasswordMode && mode === 'signup' && !signedUp && (
+            {!setPasswordMode && !forgotMode && mode === 'signup' && !signedUp && (
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
@@ -258,7 +332,7 @@ export default function Login() {
             )}
 
             {/* ── Sign Up Success ── */}
-            {!setPasswordMode && mode === 'signup' && signedUp && (
+            {!setPasswordMode && !forgotMode && mode === 'signup' && signedUp && (
               <div className="py-4 text-center">
                 <p className="text-2xl mb-2">✓</p>
                 <p className="font-medium text-navy-800">Account created!</p>
@@ -269,7 +343,7 @@ export default function Login() {
               </div>
             )}
 
-            {isDemoMode && !setPasswordMode && mode === 'signin' && (
+            {isDemoMode && !setPasswordMode && !forgotMode && mode === 'signin' && (
               <div className="mt-4 rounded-md bg-slate-50 p-3 text-xs text-slate-500">
                 <p className="mb-1 font-semibold text-slate-600">Demo accounts · password: demo123</p>
                 <p>carla.villaverde@bip-group.com (HR Admin)</p>
