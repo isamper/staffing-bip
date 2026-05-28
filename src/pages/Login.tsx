@@ -73,7 +73,7 @@ export default function Login() {
     if (error) {
       const lower = error.toLowerCase()
       if (lower.includes('invalid login credentials') || lower.includes('invalid email or password')) {
-        setError('Correo o contraseña incorrectos. Si aún no tienes cuenta, ve a "Create account" para registrarte.')
+        setError('Correo o contraseña incorrectos. Si aún no tienes cuenta, ve a "Sign up" para registrarte.')
       } else if (lower.includes('email not confirmed')) {
         setError('Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.')
       } else {
