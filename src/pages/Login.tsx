@@ -70,7 +70,17 @@ export default function Login() {
     setLoading(true)
     const { error } = await signIn(email, password)
     setLoading(false)
-    if (error) { setError(error); return }
+    if (error) {
+      const lower = error.toLowerCase()
+      if (lower.includes('invalid login credentials') || lower.includes('invalid email or password')) {
+        setError('Correo o contraseña incorrectos. Si aún no tienes cuenta, ve a "Create account" para registrarte.')
+      } else if (lower.includes('email not confirmed')) {
+        setError('Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.')
+      } else {
+        setError(error)
+      }
+      return
+    }
     navigate(profile?.user_role === 'hr_admin' ? '/admin' : '/employee', { replace: true })
   }
 
