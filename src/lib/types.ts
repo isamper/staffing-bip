@@ -14,6 +14,7 @@ export type UserRole = 'consultant' | 'hr_admin'
 
 export interface Profile {
   id: string
+  email?: string
   name: string
   role_title: string
   seniority: Seniority

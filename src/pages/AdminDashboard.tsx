@@ -824,13 +824,39 @@ export default function AdminDashboard() {
     })
   }
 
-  function handleDeactivate(consultantId: string) {
+  async function handleDeactivate(consultantId: string) {
+    // 1. Update UI and localStorage immediately
+    const consultant = consultants.find((c) => c.id === consultantId)
     setConsultants((prev) =>
       prev.map((c) => c.id === consultantId ? { ...c, is_active: false } : c),
     )
     const ids = loadDeactivatedIds()
     ids.add(consultantId)
     saveDeactivatedIds(ids)
+
+    // 2. Delete their Supabase account so they can't log in
+    // Use profile.email if available (new hires), otherwise derive from name
+    if (!isDemoMode && supabase && consultant) {
+      const email = consultant.email ?? nameToEmail(consultant.name)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deactivate-user`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email }),
+            },
+          )
+        }
+      } catch (err) {
+        console.warn('[handleDeactivate] Could not delete Supabase account:', err)
+      }
+    }
   }
 
   function toggleReplacements(consultantId: string) {
