@@ -464,10 +464,9 @@ export default function EmployeeDashboard() {
         {!isDemoMode && (
           <button
             onClick={() => { setShowChangePw(true); setPwError(''); setPwSuccess(false) }}
-            title="Cambiar contraseña"
-            className="rounded-md p-1.5 text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition"
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-navy-800 transition"
           >
-            <Lock size={16} />
+            <Lock size={13} /> Cambiar contraseña
           </button>
         )}
         <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
