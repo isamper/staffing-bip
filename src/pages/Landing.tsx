@@ -1,8 +1,20 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, Users, Zap, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Landing() {
+  const navigate = useNavigate()
+
+  // Supabase invite / password-recovery links redirect to the Site URL (root).
+  // Detect those hashes here and forward to /login so the password-set form shows.
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=invite') || hash.includes('type=recovery')) {
+      navigate('/login' + hash, { replace: true })
+    }
+  }, [navigate])
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
