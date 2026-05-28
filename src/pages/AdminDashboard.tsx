@@ -457,10 +457,15 @@ export default function AdminDashboard() {
             (p) => p.email && !knownEmails.has(p.email),
           ) as Profile[]
           if (newHires.length > 0) {
+            // Re-load deactivated IDs here so the async fetch respects deactivations
+            const deactivated = loadDeactivatedIds()
             setConsultants((prev) => {
               // Avoid duplicates if called multiple times
               const existingIds = new Set(prev.map((c) => c.id))
-              return [...prev, ...newHires.filter((h) => !existingIds.has(h.id))]
+              const toAdd = newHires
+                .filter((h) => !existingIds.has(h.id))
+                .map((h) => deactivated.has(h.id) ? { ...h, is_active: false } : h)
+              return [...prev, ...toAdd]
             })
           }
         })
