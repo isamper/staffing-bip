@@ -229,8 +229,13 @@ export default function ProjectDetail() {
               ) : (
                 <div className="space-y-3">
                   {assignedConsultants.map((c) => {
-                    const asgn = assignments.find(
+                    // Sum all dedication entries for this consultant-project pair
+                    // (Kimble can produce multiple rows for the same pair with different periods)
+                    const consultantAsgns = assignments.filter(
                       (a) => a.project_id === project.id && a.consultant_id === c.id,
+                    )
+                    const totalDedication = consultantAsgns.reduce(
+                      (sum, a) => sum + (a.dedication_percentage ?? 0), 0,
                     )
                     return (
                       <div key={c.id} className="flex items-center gap-3">
@@ -241,9 +246,9 @@ export default function ProjectDetail() {
                           <p className="text-sm font-medium text-navy-800">{c.name}</p>
                           <p className="text-xs text-slate-400">{c.role_title} · {c.seniority}</p>
                         </div>
-                        {asgn && (
+                        {consultantAsgns.length > 0 && (
                           <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs text-navy-700 shrink-0">
-                            {asgn.dedication_percentage}%
+                            {totalDedication}%
                           </span>
                         )}
                         {isHR && (
