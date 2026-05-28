@@ -106,6 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function fetchProfile(userId: string) {
+    // Always fetch user_metadata first — it is the source of truth for pending status.
+    // This ensures the pending screen shows even if the profiles table row was created
+    // with is_active: true (e.g. by an older version of the DB trigger).
+    const { data: { user } } = await supabase!.auth.getUser()
+    const meta = user?.user_metadata ?? {}
+    const isPending = meta.status === 'pending'
+
     const { data } = await supabase!
       .from('profiles')
       .select('*')
@@ -113,17 +120,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single()
 
     if (data) {
-      setProfile(data)
+      // Override is_active with user_metadata status — pending users must see
+      // the pending screen regardless of what the DB row says.
+      setProfile({ ...data, is_active: isPending ? false : data.is_active })
       setLoading(false)
       return
     }
 
     // Profile row doesn't exist yet (e.g. pending approval, DB trigger not fired).
     // Build a minimal profile from user_metadata so the UI can render a pending screen.
-    const { data: { user } } = await supabase!.auth.getUser()
     if (user) {
-      const meta = user.user_metadata ?? {}
-      const isPending = meta.status === 'pending'
       const minimalProfile: Profile = {
         id: userId,
         name: meta.name ?? user.email ?? userId,

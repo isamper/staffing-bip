@@ -68,13 +68,24 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Approve the user by setting status to 'approved'
+    // Approve the user: update user_metadata AND profiles table
     const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       user_metadata: { status: "approved" },
     });
 
     if (updateError) {
       throw new Error(updateError.message);
+    }
+
+    // Also flip is_active in the profiles table so the dashboard unlocks on next refresh
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .update({ is_active: true })
+      .eq("id", userId);
+
+    if (profileError) {
+      console.warn("[approve-user] profiles update failed:", profileError.message);
+      // Non-fatal — user_metadata is the source of truth for pending check
     }
 
     return new Response(JSON.stringify({ ok: true }), {
