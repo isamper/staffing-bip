@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import ResetPassword from '@/pages/ResetPassword'
+import ConfirmEmail from '@/pages/ConfirmEmail'
 import EmployeeDashboard from '@/pages/EmployeeDashboard'
 import AdminDashboard from '@/pages/AdminDashboard'
 import Analytics from '@/pages/Analytics'
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset" element={<ResetPassword />} />
+            <Route path="/confirm" element={<ConfirmEmail />} />
             <Route
               path="/employee"
               element={
