@@ -42,8 +42,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Check that caller has hr_admin role
-    if (caller.user_metadata?.user_role !== "hr_admin") {
+    // Check that caller has hr_admin role (check profiles table — source of truth)
+    const { data: callerProfile } = await adminClient
+      .from("profiles")
+      .select("user_role")
+      .eq("id", caller.id)
+      .single();
+
+    const isAdmin =
+      callerProfile?.user_role === "hr_admin" ||
+      caller.user_metadata?.user_role === "hr_admin";
+
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Forbidden: hr_admin role required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

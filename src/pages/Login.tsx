@@ -106,7 +106,7 @@ export default function Login() {
     if (error) {
       const lower = error.toLowerCase()
       if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('user already registered')) {
-        setError('Ya tienes una cuenta con este correo. Usa "Sign in" para iniciar sesión, o "¿Olvidaste tu contraseña?" si no recuerdas tu contraseña.')
+        setError('Ya tienes una cuenta con este correo. Si tu registro está pendiente de aprobación, inicia sesión para ver el estado. Si ya tienes cuenta activa, usa "¿Olvidaste tu contraseña?" si no recuerdas tu contraseña.')
       } else {
         setError(error)
       }
