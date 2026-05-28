@@ -229,7 +229,8 @@ export default function EmployeeDashboard() {
   const [pwError, setPwError]       = useState('')
   const [pwSuccess, setPwSuccess]   = useState(false)
   const [pwLoading, setPwLoading]   = useState(false)
-  const [mustChangePw, setMustChangePw] = useState(false)
+  const [mustChangePw, setMustChangePw]   = useState(false)
+  const [showChangePw, setShowChangePw]   = useState(false)
 
   // Check if user must change password on first login
   useEffect(() => {
@@ -256,7 +257,7 @@ export default function EmployeeDashboard() {
     setMustChangePw(false)
     setPwNew('')
     setPwConfirm('')
-    setTimeout(() => setPwSuccess(false), 4000)
+    setTimeout(() => { setPwSuccess(false); setShowChangePw(false) }, 2000)
   }
   const [likes, setLikes] = useState<ProjectLike[]>(mockLikes)
   const [teamSearch, setTeamSearch] = useState('')
@@ -418,12 +419,57 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
+      {/* ── Optional change password modal ── */}
+      {showChangePw && !mustChangePw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-2xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-navy-800">Cambiar contraseña</h2>
+              <button onClick={() => { setShowChangePw(false); setPwError(''); setPwNew(''); setPwConfirm('') }}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+            </div>
+            {pwSuccess ? (
+              <p className="rounded-md bg-green-50 px-3 py-3 text-sm text-green-700 text-center">
+                ✓ Contraseña actualizada correctamente
+              </p>
+            ) : (
+              <form onSubmit={handleChangePassword} className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nueva contraseña</Label>
+                  <Input type="password" placeholder="Mínimo 6 caracteres"
+                    value={pwNew} onChange={(e) => setPwNew(e.target.value)} autoFocus />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Confirmar contraseña</Label>
+                  <Input type="password" placeholder="••••••••"
+                    value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+                </div>
+                {pwError && <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{pwError}</p>}
+                <Button type="submit" className="w-full" disabled={pwLoading}>
+                  {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">My Dashboard</h1>
           <p className="text-sm text-slate-500">Welcome back, {profile.name.split(' ')[0]}</p>
         </div>
-        {/* Tabs */}
+        {/* Tabs + change password button */}
+        <div className="flex items-center gap-2">
+        {!isDemoMode && (
+          <button
+            onClick={() => { setShowChangePw(true); setPwError(''); setPwSuccess(false) }}
+            title="Cambiar contraseña"
+            className="rounded-md p-1.5 text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition"
+          >
+            <Lock size={16} />
+          </button>
+        )}
         <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1">
           <button
             onClick={() => setTab('overview')}
@@ -443,6 +489,7 @@ export default function EmployeeDashboard() {
           >
             <Users size={14} /> Equipo
           </button>
+        </div>
         </div>
       </div>
 
@@ -610,51 +657,6 @@ export default function EmployeeDashboard() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Change password */}
-          {!isDemoMode && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Lock size={15} className="text-bip-red" /> Cambiar contraseña
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pwSuccess ? (
-                  <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-                    ✓ Contraseña actualizada correctamente
-                  </p>
-                ) : (
-                  <form onSubmit={handleChangePassword} className="space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Nueva contraseña</Label>
-                      <Input
-                        type="password"
-                        placeholder="Mínimo 6 caracteres"
-                        value={pwNew}
-                        onChange={(e) => setPwNew(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Confirmar contraseña</Label>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        value={pwConfirm}
-                        onChange={(e) => setPwConfirm(e.target.value)}
-                      />
-                    </div>
-                    {pwError && (
-                      <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{pwError}</p>
-                    )}
-                    <Button type="submit" size="sm" className="w-full" disabled={pwLoading}>
-                      {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
-                    </Button>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Current assignments */}
           <Card>
