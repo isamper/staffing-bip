@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle, Lock } from 'lucide-react'
+import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle, Lock, LogOut } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import Layout from '@/components/Layout'
@@ -195,7 +195,7 @@ function applysavedEdits(base: Profile): Profile {
 }
 
 export default function EmployeeDashboard() {
-  const { profile: authProfile } = useAuth()
+  const { profile: authProfile, signOut } = useAuth()
 
   // Initialise with saved edits already merged so the CV is correct on first
   // render and survives page reloads without overwriting persisted data.
@@ -373,6 +373,33 @@ export default function EmployeeDashboard() {
 
   return (
     <Layout>
+      {/* ── Pending approval screen ── */}
+      {profile && !profile.is_active && !isDemoMode && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-50 px-4">
+          <div className="mb-6 text-center">
+            <span className="font-display text-4xl font-bold text-navy-800">
+              bench<span className="text-bip-red">.</span>
+            </span>
+          </div>
+          <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg text-center">
+            <p className="text-5xl mb-4">⏳</p>
+            <h2 className="text-xl font-semibold text-navy-800 mb-2">
+              Cuenta pendiente de aprobación
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Tu solicitud está siendo revisada por el equipo de Recursos Humanos.
+              Recibirás acceso una vez que tu cuenta sea aprobada.
+            </p>
+            <button
+              onClick={() => signOut()}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-navy-400 hover:text-navy-800 transition-colors"
+            >
+              <LogOut size={14} /> Cerrar sesión
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Forced password change modal ── */}
       {mustChangePw && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

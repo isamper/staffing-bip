@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-    // New hire: profile was created by the DB trigger on signup
+    // New hire: try the profiles table first, fall back to user_metadata
     await fetchProfile(userId)
   }
 
@@ -111,7 +111,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-    setProfile(data ?? null)
+
+    if (data) {
+      setProfile(data)
+      setLoading(false)
+      return
+    }
+
+    // Profile row doesn't exist yet (e.g. pending approval, DB trigger not fired).
+    // Build a minimal profile from user_metadata so the UI can render a pending screen.
+    const { data: { user } } = await supabase!.auth.getUser()
+    if (user) {
+      const meta = user.user_metadata ?? {}
+      const isPending = meta.status === 'pending'
+      const minimalProfile: Profile = {
+        id: userId,
+        name: meta.name ?? user.email ?? userId,
+        role_title: meta.role_title ?? meta.seniority ?? '',
+        seniority: meta.seniority ?? 'Consultant',
+        practice_area: null,
+        user_role: 'consultant',
+        skills: [],
+        is_active: !isPending,
+        available_from: new Date().toISOString().split('T')[0],
+        internship_start_date: null,
+        internship_end_date: null,
+        created_at: user.created_at ?? new Date().toISOString(),
+        bio: null,
+        education: null,
+        languages: null,
+        years_of_experience: null,
+        certifications: [],
+        experience: [],
+        photo_url: null,
+        cv_versions: [],
+      }
+      setProfile(minimalProfile)
+    } else {
+      setProfile(null)
+    }
     setLoading(false)
   }
 
@@ -144,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase!.auth.signUp({
       email,
       password,
-      options: { data: { name, role_title, seniority } },
+      options: { data: { name, role_title, seniority, status: 'pending' } },
     })
 
     if (error) return { error: error.message }

@@ -40,7 +40,13 @@
       "Bash(npx vercel *)",
       "Bash(git push *)",
       "Bash(git checkout *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(cat vercel.json)",
+      "Bash(ls *.json)",
+      "Bash(where py *)",
+      "Bash(where python3.exe)",
+      "Read(//usr/**)",
+      "Read(//usr/local/**)"
     ]
   }
 }

@@ -393,6 +393,18 @@ export default function AdminDashboard() {
   const todayStr = today.toISOString().split('T')[0]
   const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split('T')[0]
 
+  // ── Pending new hires ────────────────────────────────────────────────────────
+  interface PendingUser {
+    id: string
+    email: string
+    name: string
+    seniority: string
+    created_at: string
+  }
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+
   // On mount: restore projects + consultant metadata from last Kimble import.
   // If bench_assignments_v1 already exists (user has persisted state), skip
   // re-generating assignments so manual changes survive.  If it doesn't exist
@@ -454,6 +466,59 @@ export default function AdminDashboard() {
         })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch pending users from Edge Function on mount (real mode only)
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    async function fetchPendingUsers() {
+      setPendingLoading(true)
+      try {
+        const { data: { session } } = await supabase!.auth.getSession()
+        if (!session) return
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-pending-users`,
+          {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        )
+        if (res.ok) {
+          const json = await res.json()
+          setPendingUsers(json.users ?? [])
+        }
+      } catch { /* ignore — Edge Function may not be deployed yet */ } finally {
+        setPendingLoading(false)
+      }
+    }
+    fetchPendingUsers()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleApproveUser(userId: string) {
+    if (!supabase) return
+    setApprovingId(userId)
+    try {
+      const { data: { session } } = await supabase!.auth.getSession()
+      if (!session) return
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId }),
+        },
+      )
+      if (res.ok) {
+        setPendingUsers((prev) => prev.filter((u) => u.id !== userId))
+      }
+    } catch { /* ignore */ } finally {
+      setApprovingId(null)
+    }
+  }
 
   function handleKimbleImport(result: KimbleImportResult, opts: { skipAssignments?: boolean } = {}) {
     // Accent-insensitive name normalization
@@ -895,6 +960,59 @@ export default function AdminDashboard() {
           Import Kimble
         </Button>
       </div>
+
+      {/* ── Nuevos Consultores (real mode only) ── */}
+      {!isDemoMode && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <UserPlus size={16} className="text-navy-800" />
+            <h2 className="text-sm font-semibold text-navy-800">Nuevos Consultores</h2>
+            {pendingUsers.length > 0 && (
+              <span className="rounded-full bg-bip-red px-2 py-0.5 text-xs font-semibold text-white">
+                {pendingUsers.length}
+              </span>
+            )}
+          </div>
+
+          {pendingLoading ? (
+            <p className="text-sm text-slate-400">Cargando…</p>
+          ) : pendingUsers.length === 0 ? (
+            <p className="text-sm text-slate-400">No hay nuevos consultores pendientes.</p>
+          ) : (
+            <div className="space-y-3">
+              {pendingUsers.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between gap-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-navy-800 truncate">{u.name || '(sin nombre)'}</p>
+                    <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {u.seniority && (
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                          {u.seniority}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">
+                        Registrado: {new Date(u.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={approvingId === u.id}
+                    onClick={() => handleApproveUser(u.id)}
+                    className="shrink-0"
+                  >
+                    {approvingId === u.id ? 'Aprobando…' : 'Aprobar'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <Tabs defaultValue="projects">
         <TabsList>
