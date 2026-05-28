@@ -860,9 +860,17 @@ export default function ConsultantCV({ profile, onUpdate, readOnly = false }: Co
                 else if (hasEnContent) setActiveLang('en')
                 else if (!readOnly) handleTranslate('es→en')
               }}
-              disabled={translating}
-              title={!hasEnContent && !readOnly ? 'Haz clic para traducir al inglés' : dirtyLang === 'es' && !readOnly ? 'Traducción desactualizada — clic para actualizar' : undefined}
-              className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-60 ${
+              disabled={translating || (readOnly && !hasEnContent)}
+              title={
+                readOnly && !hasEnContent
+                  ? 'Este consultor aún no tiene versión en inglés'
+                  : !hasEnContent && !readOnly
+                    ? 'Haz clic para traducir al inglés'
+                    : dirtyLang === 'es' && !readOnly
+                      ? 'Traducción desactualizada — clic para actualizar'
+                      : undefined
+              }
+              className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                 activeLang === 'en' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
