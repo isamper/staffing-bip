@@ -93,7 +93,15 @@ export default function Login() {
     })
     setLoading(false)
 
-    if (error) { setError(error); return }
+    if (error) {
+      const lower = error.toLowerCase()
+      if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('user already registered')) {
+        setError('Ya tienes una cuenta con este correo. Usa "Sign in" para iniciar sesión, o "¿Olvidaste tu contraseña?" si no recuerdas tu contraseña.')
+      } else {
+        setError(error)
+      }
+      return
+    }
     setSignedUp(true)
   }
 
