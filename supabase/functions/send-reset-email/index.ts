@@ -61,7 +61,10 @@ Deno.serve(async (req: Request) => {
       throw new Error(linkError?.message ?? "Failed to generate reset link.");
     }
 
-    const resetLink = linkData.properties.action_link;
+    const supabaseResetLink = linkData.properties.action_link;
+    // Wrap in intermediate page to defeat corporate email scanners that
+    // auto-visit links and consume one-time tokens before the user clicks.
+    const resetLink = `https://staffing-bip.vercel.app/reset?go=${encodeURIComponent(supabaseResetLink)}`;
 
     // Send email via Gmail SMTP using nodemailer
     const gmailUser = Deno.env.get("GMAIL_USER");

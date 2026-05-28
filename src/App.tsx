@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
+import ResetPassword from '@/pages/ResetPassword'
 import EmployeeDashboard from '@/pages/EmployeeDashboard'
 import AdminDashboard from '@/pages/AdminDashboard'
 import Analytics from '@/pages/Analytics'
@@ -18,6 +19,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset" element={<ResetPassword />} />
             <Route
               path="/employee"
               element={
