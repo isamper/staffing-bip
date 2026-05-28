@@ -1,26 +1,33 @@
 /**
  * bench. — one-time invite script
  *
- * Sends a Supabase invite email to every consultant so they can set their
- * own password and log in.
+ * Generates a Supabase invite link for every consultant and sends it via
+ * Resend (bypasses Supabase's unreliable built-in email service).
  *
  * Usage:
- *   1. Find your service_role key:
- *      Supabase dashboard → Settings → API → "service_role secret" → Reveal
- *   2. Run:
- *      SERVICE_ROLE_KEY=eyJ... node scripts/invite-consultants.mjs
+ *   SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs
  *
- * Safe to re-run — already-invited users get a new invite link (harmless).
+ * To invite only specific emails:
+ *   EMAILS=isabel.samper@bip-group.com SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs
+ *
+ * Safe to re-run — existing users get a fresh invite link.
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { Resend } from 'resend'
 
 const SUPABASE_URL = 'https://hndooobymqxkaymktbzz.supabase.co'
 const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY
+const RESEND_API_KEY = process.env.RESEND_API_KEY
 
 if (!SERVICE_ROLE_KEY) {
-  console.error('❌  Set SERVICE_ROLE_KEY env var first:')
-  console.error('   SERVICE_ROLE_KEY=eyJ... node scripts/invite-consultants.mjs')
+  console.error('❌  Set SERVICE_ROLE_KEY env var:')
+  console.error('   SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs')
+  process.exit(1)
+}
+if (!RESEND_API_KEY) {
+  console.error('❌  Set RESEND_API_KEY env var:')
+  console.error('   SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs')
   process.exit(1)
 }
 
@@ -28,8 +35,9 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+const resend = new Resend(RESEND_API_KEY)
+
 // ── Consultant list ──────────────────────────────────────────────────────────
-// Email derivation: first + last name, lowercase, no accents, @bip-group.com
 const consultants = [
   { name: 'Hernando Baquero',         email: 'hernando.baquero@bip-group.com' },
   { name: 'John Jairo Romero',        email: 'john.romero@bip-group.com' },
@@ -109,39 +117,100 @@ const consultants = [
   { name: 'Sara Lopez',               email: 'sara.lopez@bip-group.com' },
   { name: 'Mateo Zarama',             email: 'mateo.zarama@bip-group.com' },
   { name: 'Alejandro Abdel',          email: 'alejandro.abdel@bip-group.com' },
-  // HR admins (not in mockConsultants but need access)
+  // HR admins
   { name: 'Martha Martinez',          email: 'martha.martinez@bip-group.com' },
 ]
 
+function inviteEmailHtml(name, inviteLink) {
+  const firstName = name.split(' ')[0]
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#f8fafc;padding:32px">
+  <div style="max-width:480px;margin:0 auto;background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+    <p style="font-size:28px;font-weight:700;color:#1e3a5f;margin:0 0 4px">bench<span style="color:#e53e3e">.</span></p>
+    <p style="color:#64748b;margin:0 0 24px;font-size:13px">Smart Staffing by Bip Consulting</p>
+    <h2 style="color:#1e3a5f;margin:0 0 12px">Hola, ${firstName} 👋</h2>
+    <p style="color:#334155;line-height:1.6">
+      Has sido invitado/a a <strong>bench.</strong>, la plataforma de staffing de Bip Consulting Colombia.
+      Haz clic en el botón para crear tu contraseña y acceder a tu perfil.
+    </p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${inviteLink}"
+         style="background:#1e3a5f;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
+        Crear mi contraseña →
+      </a>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0">
+      Este enlace expira en 24 horas. Si no esperabas esta invitación, puedes ignorar este correo.
+    </p>
+  </div>
+</body>
+</html>`
+}
+
 async function main() {
-  console.log(`Inviting ${consultants.length} users to bench.\n`)
+  // Optional: filter to specific emails via EMAILS env var
+  const emailFilter = process.env.EMAILS
+    ? process.env.EMAILS.split(',').map(e => e.trim().toLowerCase())
+    : null
+
+  const targets = emailFilter
+    ? consultants.filter(c => emailFilter.includes(c.email.toLowerCase()))
+    : consultants
+
+  if (emailFilter && targets.length === 0) {
+    console.error('❌  No matching consultants found for the EMAILS filter.')
+    process.exit(1)
+  }
+
+  console.log(`Inviting ${targets.length} user(s) to bench.\n`)
   let ok = 0, fail = 0
 
-  for (const c of consultants) {
-    const { error } = await supabase.auth.admin.inviteUserByEmail(c.email, {
-      data: { name: c.name },
-      redirectTo: 'https://staffing-bip.vercel.app/login',
+  for (const c of targets) {
+    // 1. Generate invite link via Supabase Admin (creates/updates the user)
+    const { data, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'invite',
+      email: c.email,
+      options: {
+        redirectTo: 'https://staffing-bip.vercel.app/login',
+        data: { name: c.name },
+      },
     })
 
-    if (error) {
-      // "User already registered" is not a real error — they'll get a new link
-      const msg = error.message ?? ''
-      if (msg.includes('already')) {
-        console.log(`  ↩  ${c.email} (already registered, re-invited)`)
-      } else {
-        console.error(`  ✗  ${c.email}: ${msg}`)
-        fail++
-      }
+    if (linkError) {
+      console.error(`  ✗  ${c.email}: ${linkError.message}`)
+      fail++
+      continue
+    }
+
+    const inviteLink = data?.properties?.action_link
+    if (!inviteLink) {
+      console.error(`  ✗  ${c.email}: no action_link returned`)
+      fail++
+      continue
+    }
+
+    // 2. Send email via Resend
+    const { error: emailError } = await resend.emails.send({
+      from: 'bench. <onboarding@resend.dev>',
+      to: c.email,
+      subject: 'Tu invitación a bench. (Bip Consulting)',
+      html: inviteEmailHtml(c.name, inviteLink),
+    })
+
+    if (emailError) {
+      console.error(`  ✗  ${c.email} (email failed): ${emailError.message}`)
+      fail++
     } else {
       console.log(`  ✓  ${c.email}`)
       ok++
     }
 
-    // Respect Supabase rate limits
     await new Promise(r => setTimeout(r, 300))
   }
 
-  console.log(`\nDone. ${ok} invited, ${fail} errors.`)
+  console.log(`\nDone. ${ok} sent, ${fail} errors.`)
   if (fail > 0) process.exit(1)
 }
 
