@@ -229,6 +229,15 @@ export default function EmployeeDashboard() {
   const [pwError, setPwError]       = useState('')
   const [pwSuccess, setPwSuccess]   = useState(false)
   const [pwLoading, setPwLoading]   = useState(false)
+  const [mustChangePw, setMustChangePw] = useState(false)
+
+  // Check if user must change password on first login
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.user_metadata?.must_change_pw) setMustChangePw(true)
+    })
+  }, [])
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault()
@@ -237,10 +246,14 @@ export default function EmployeeDashboard() {
     if (pwNew.length < 6) { setPwError('La contraseña debe tener al menos 6 caracteres'); return }
     if (pwNew !== pwConfirm) { setPwError('Las contraseñas no coinciden'); return }
     setPwLoading(true)
-    const { error } = await supabase!.auth.updateUser({ password: pwNew })
+    const { error } = await supabase!.auth.updateUser({
+      password: pwNew,
+      data: { must_change_pw: false },
+    })
     setPwLoading(false)
     if (error) { setPwError(error.message); return }
     setPwSuccess(true)
+    setMustChangePw(false)
     setPwNew('')
     setPwConfirm('')
     setTimeout(() => setPwSuccess(false), 4000)
@@ -359,6 +372,52 @@ export default function EmployeeDashboard() {
 
   return (
     <Layout>
+      {/* ── Forced password change modal ── */}
+      {mustChangePw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-2xl mx-4">
+            <div className="mb-1 text-center">
+              <span className="font-display text-3xl font-bold text-navy-800">
+                bench<span className="text-bip-red">.</span>
+              </span>
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-navy-800 text-center">
+              Crea tu contraseña personal
+            </h2>
+            <p className="mt-1 mb-5 text-sm text-slate-500 text-center">
+              Por seguridad, debes cambiar la contraseña temporal antes de continuar.
+            </p>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Nueva contraseña</Label>
+                <Input
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={pwNew}
+                  onChange={(e) => setPwNew(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Confirmar contraseña</Label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={pwConfirm}
+                  onChange={(e) => setPwConfirm(e.target.value)}
+                />
+              </div>
+              {pwError && (
+                <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{pwError}</p>
+              )}
+              <Button type="submit" className="w-full" disabled={pwLoading}>
+                {pwLoading ? 'Guardando…' : 'Guardar y continuar →'}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">My Dashboard</h1>

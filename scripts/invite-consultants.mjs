@@ -14,20 +14,20 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 const SUPABASE_URL = 'https://hndooobymqxkaymktbzz.supabase.co'
 const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY
-const RESEND_API_KEY = process.env.RESEND_API_KEY
+const GMAIL_USER = process.env.GMAIL_USER       // your.email@gmail.com
+const GMAIL_PASS = process.env.GMAIL_PASS       // 16-char Gmail App Password
 
 if (!SERVICE_ROLE_KEY) {
-  console.error('❌  Set SERVICE_ROLE_KEY env var:')
-  console.error('   SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs')
+  console.error('❌  Set SERVICE_ROLE_KEY env var')
   process.exit(1)
 }
-if (!RESEND_API_KEY) {
-  console.error('❌  Set RESEND_API_KEY env var:')
-  console.error('   SERVICE_ROLE_KEY=eyJ... RESEND_API_KEY=re_... node scripts/invite-consultants.mjs')
+if (!GMAIL_USER || !GMAIL_PASS) {
+  console.error('❌  Set GMAIL_USER and GMAIL_PASS env vars')
+  console.error('   GMAIL_USER=you@gmail.com GMAIL_PASS=xxxx xxxx xxxx xxxx')
   process.exit(1)
 }
 
@@ -35,7 +35,10 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const resend = new Resend(RESEND_API_KEY)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+})
 
 // ── Consultant list ──────────────────────────────────────────────────────────
 const consultants = [
@@ -119,9 +122,12 @@ const consultants = [
   { name: 'Alejandro Abdel',          email: 'alejandro.abdel@bip-group.com' },
   // HR admins
   { name: 'Martha Martinez',          email: 'martha.martinez@bip-group.com' },
+  { name: 'Isabel Samper',            email: 'isabel.samper@bip-group.com' },
 ]
 
-function inviteEmailHtml(name, inviteLink) {
+const TEMP_PASSWORD = 'Bip2026!'
+
+function inviteEmailHtml(name) {
   const firstName = name.split(' ')[0]
   return `
 <!DOCTYPE html>
@@ -133,16 +139,24 @@ function inviteEmailHtml(name, inviteLink) {
     <h2 style="color:#1e3a5f;margin:0 0 12px">Hola, ${firstName} 👋</h2>
     <p style="color:#334155;line-height:1.6">
       Has sido invitado/a a <strong>bench.</strong>, la plataforma de staffing de Bip Consulting Colombia.
-      Haz clic en el botón para crear tu contraseña y acceder a tu perfil.
+      Ya tienes tu cuenta lista. Ingresa con tus credenciales:
     </p>
-    <div style="text-align:center;margin:32px 0">
-      <a href="${inviteLink}"
+    <div style="background:#f1f5f9;border-radius:8px;padding:20px;margin:24px 0">
+      <p style="margin:0 0 8px;color:#64748b;font-size:13px">URL</p>
+      <p style="margin:0 0 16px;font-weight:600;color:#1e3a5f">staffing-bip.vercel.app</p>
+      <p style="margin:0 0 8px;color:#64748b;font-size:13px">Correo</p>
+      <p style="margin:0 0 16px;font-weight:600;color:#1e3a5f">${name.split(' ')[0].toLowerCase()}.${name.split(' ').pop().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}@bip-group.com</p>
+      <p style="margin:0 0 8px;color:#64748b;font-size:13px">Contraseña temporal</p>
+      <p style="margin:0;font-weight:700;color:#1e3a5f;font-size:18px;letter-spacing:1px">${TEMP_PASSWORD}</p>
+    </div>
+    <div style="text-align:center;margin:24px 0">
+      <a href="https://staffing-bip.vercel.app/login"
          style="background:#1e3a5f;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
-        Crear mi contraseña →
+        Ingresar a bench. →
       </a>
     </div>
     <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0">
-      Este enlace expira en 24 horas. Si no esperabas esta invitación, puedes ignorar este correo.
+      Puedes cambiar tu contraseña desde la plataforma usando "¿Olvidaste tu contraseña?".
     </p>
   </div>
 </body>
@@ -168,48 +182,44 @@ async function main() {
   let ok = 0, fail = 0
 
   for (const c of targets) {
-    // 1. Generate invite link via Supabase Admin (creates/updates the user)
-    const { data, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'invite',
+    // 1. Create user with temporary password — no magic links, avoids corporate email scanner issues
+    const { error: createError } = await supabase.auth.admin.createUser({
       email: c.email,
-      options: {
-        redirectTo: 'https://staffing-bip.vercel.app/login',
-        data: { name: c.name },
-      },
+      password: TEMP_PASSWORD,
+      email_confirm: true,
+      user_metadata: { name: c.name, must_change_pw: true },
     })
 
-    if (linkError) {
-      console.error(`  ✗  ${c.email}: ${linkError.message}`)
+    if (createError && !createError.message.includes('already been registered')) {
+      console.error(`  ✗  ${c.email}: ${createError.message}`)
       fail++
       continue
     }
 
-    const inviteLink = data?.properties?.action_link
-    if (!inviteLink) {
-      console.error(`  ✗  ${c.email}: no action_link returned`)
-      fail++
-      continue
+    if (createError?.message?.includes('already been registered')) {
+      console.log(`  ↩  ${c.email} (already exists — skipping account creation, re-sending email)`)
     }
 
-    // 2. Send email via Resend
-    const { error: emailError } = await resend.emails.send({
-      from: 'bench. <onboarding@resend.dev>',
-      to: c.email,
-      subject: 'Tu invitación a bench. (Bip Consulting)',
-      html: inviteEmailHtml(c.name, inviteLink),
-    })
-
-    if (emailError) {
-      console.error(`  ✗  ${c.email} (email failed): ${emailError.message}`)
-      fail++
-    } else {
+    // 2. Send email via Gmail with temporary password
+    const recipient = process.env.TEST_RECIPIENT || c.email
+    try {
+      await transporter.sendMail({
+        from: `"bench. Bip Consulting" <${GMAIL_USER}>`,
+        to: recipient,
+        subject: 'Tu acceso a bench. (Bip Consulting)',
+        html: inviteEmailHtml(c.name),
+      })
       console.log(`  ✓  ${c.email}`)
       ok++
+    } catch (emailErr) {
+      console.error(`  ✗  ${c.email} (email failed): ${emailErr.message}`)
+      fail++
     }
 
     await new Promise(r => setTimeout(r, 300))
   }
 
+  transporter.close()
   console.log(`\nDone. ${ok} sent, ${fail} errors.`)
   if (fail > 0) process.exit(1)
 }
