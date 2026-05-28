@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle } from 'lucide-react'
+import { Heart, Briefcase, Clock, FileText, Users, Search, X, AlertTriangle, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import Layout from '@/components/Layout'
@@ -16,6 +16,7 @@ import {
   mockLikes,
 } from '@/lib/mockData'
 import { getInitials, formatDate } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 import type { Profile, Project, ProjectAssignment, ProjectLike } from '@/lib/types'
 import type { KimbleImportResult } from '@/lib/kimbleParser'
 
@@ -221,6 +222,29 @@ export default function EmployeeDashboard() {
   }, [authProfile])
 
   const [tab, setTab] = useState<Tab>('overview')
+
+  // ── Change password ────────────────────────────────────────────────────────
+  const [pwNew, setPwNew]           = useState('')
+  const [pwConfirm, setPwConfirm]   = useState('')
+  const [pwError, setPwError]       = useState('')
+  const [pwSuccess, setPwSuccess]   = useState(false)
+  const [pwLoading, setPwLoading]   = useState(false)
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPwError('')
+    setPwSuccess(false)
+    if (pwNew.length < 6) { setPwError('La contraseña debe tener al menos 6 caracteres'); return }
+    if (pwNew !== pwConfirm) { setPwError('Las contraseñas no coinciden'); return }
+    setPwLoading(true)
+    const { error } = await supabase!.auth.updateUser({ password: pwNew })
+    setPwLoading(false)
+    if (error) { setPwError(error.message); return }
+    setPwSuccess(true)
+    setPwNew('')
+    setPwConfirm('')
+    setTimeout(() => setPwSuccess(false), 4000)
+  }
   const [likes, setLikes] = useState<ProjectLike[]>(mockLikes)
   const [teamSearch, setTeamSearch] = useState('')
   const [selectedColleague, setSelectedColleague] = useState<Profile | null>(null)
@@ -527,6 +551,51 @@ export default function EmployeeDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Change password */}
+          {!isDemoMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Lock size={15} className="text-bip-red" /> Cambiar contraseña
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pwSuccess ? (
+                  <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                    ✓ Contraseña actualizada correctamente
+                  </p>
+                ) : (
+                  <form onSubmit={handleChangePassword} className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nueva contraseña</Label>
+                      <Input
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={pwNew}
+                        onChange={(e) => setPwNew(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Confirmar contraseña</Label>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={pwConfirm}
+                        onChange={(e) => setPwConfirm(e.target.value)}
+                      />
+                    </div>
+                    {pwError && (
+                      <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{pwError}</p>
+                    )}
+                    <Button type="submit" size="sm" className="w-full" disabled={pwLoading}>
+                      {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Current assignments */}
           <Card>
