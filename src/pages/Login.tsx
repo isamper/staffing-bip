@@ -105,12 +105,23 @@ export default function Login() {
       return
     }
     setLoading(true)
-    const { error } = await supabase!.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: 'https://staffing-bip.vercel.app/login',
-    })
-    setLoading(false)
-    if (error) { setError(error.message); return }
-    setForgotSent(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-email`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: forgotEmail }),
+        }
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al enviar el correo')
+      setForgotSent(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al enviar el correo')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSetPassword(e: React.FormEvent) {
