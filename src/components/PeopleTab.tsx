@@ -98,7 +98,7 @@ function DedicationBar({ value, max }: { value: number; max: number }) {
   )
 }
 
-function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate, onSetAdminRole }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void; onDeactivate: (id: string) => void; onSetAdminRole?: (id: string, role: 'hr_admin' | 'consultant') => void }) {
+function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void; onDeactivate: (id: string) => void }) {
   const { consultant, totalDedication, maxDedication, projectsInfo, pastProjectsInfo } = stats
   const allProjects = [
     ...projectsInfo.map(p => ({ ...p, past: false as const })),
@@ -205,35 +205,7 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate, onSetAd
         >
           Dar de baja
         </button>
-        {onSetAdminRole && (
-          consultant.user_role === 'hr_admin' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (window.confirm(`¿Revocar acceso admin a ${consultant.name}?`)) {
-                  onSetAdminRole(consultant.id, 'consultant')
-                }
-              }}
-              className="mt-1 text-xs text-slate-300 hover:text-amber-500 transition-colors"
-              title="Revocar acceso admin"
-            >
-              Revocar admin
-            </button>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (window.confirm(`¿Otorgar acceso admin a ${consultant.name}?`)) {
-                  onSetAdminRole(consultant.id, 'hr_admin')
-                }
-              }}
-              className="mt-1 text-xs text-slate-300 hover:text-blue-500 transition-colors"
-              title="Otorgar acceso admin"
-            >
-              Otorgar admin
-            </button>
-          )
-        )}
+
         <p className="text-xs text-slate-400">
           {isAvailableNow(consultant.available_from)
             ? 'Available now'
@@ -260,12 +232,11 @@ interface PeopleTabProps {
   onAddVacation: (consultantId: string, startDate: string, endDate: string, note: string) => void
   onRemoveVacation: (id: string) => void
   onDeactivate: (consultantId: string) => void
-  onSetAdminRole?: (consultantId: string, role: 'hr_admin' | 'consultant') => void
 }
 
 export default function PeopleTab({
   consultants, projects, assignments, beachAssignments, vacations,
-  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate, onSetAdminRole,
+  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
@@ -612,7 +583,7 @@ export default function PeopleTab({
         <div className="space-y-2">
           {filtered.map((s) => (
             <div key={s.consultant.id}>
-              <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} onRemoveVacation={onRemoveVacation} onDeactivate={onDeactivate} onSetAdminRole={onSetAdminRole} />
+              <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} onRemoveVacation={onRemoveVacation} onDeactivate={onDeactivate} />
               {/* Beach tasks row */}
               {(s.activeBeachTasks.length > 0 || s.pastBeachTasks.length > 0 || s.isOnBeach) && (
                 <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
