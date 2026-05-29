@@ -33,6 +33,7 @@ export default function Login() {
   const [name, setName] = useState('')
   const [signUpEmail, setSignUpEmail] = useState('')
   const [seniority, setSeniority] = useState<Profile['seniority']>('Consultant')
+  const [isAdminOnly, setIsAdminOnly] = useState(false)
   const [signUpPassword, setSignUpPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -98,8 +99,9 @@ export default function Login() {
       email: signUpEmail,
       password: signUpPassword,
       name: name.trim(),
-      role_title: seniority,
-      seniority,
+      role_title: isAdminOnly ? 'HR Admin' : seniority,
+      seniority: isAdminOnly ? 'Manager' : seniority,
+      isAdminOnly,
     })
     setLoading(false)
 
@@ -336,15 +338,26 @@ export default function Login() {
                   <Label>Email</Label>
                   <Input type="email" placeholder="firstname.lastname@bip-group.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Role</Label>
-                  <Select value={seniority} onValueChange={(v) => setSeniority(v as Profile['seniority'])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {SENIORITY_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isAdminOnly && (
+                  <div className="space-y-1.5">
+                    <Label>Role</Label>
+                    <Select value={seniority} onValueChange={(v) => setSeniority(v as Profile['seniority'])}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SENIORITY_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAdminOnly}
+                    onChange={(e) => setIsAdminOnly(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 accent-navy-800"
+                  />
+                  <span className="text-sm text-slate-600">Solo tengo rol administrativo (no soy consultor/a)</span>
+                </label>
                 <div className="space-y-1.5">
                   <Label>Password</Label>
                   <Input type="password" placeholder="At least 6 characters" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)} />

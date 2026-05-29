@@ -25,6 +25,7 @@ export interface Profile {
   internship_end_date: string | null
   user_role: UserRole
   is_active: boolean
+  is_admin_only?: boolean
   created_at: string
   // CV fields (editable by consultant)
   photo_url?: string | null

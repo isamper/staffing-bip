@@ -10,6 +10,7 @@ interface SignUpData {
   name: string
   role_title: string
   seniority: Profile['seniority']
+  isAdminOnly?: boolean
 }
 
 interface AuthContextValue {
@@ -178,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }
 
-  async function signUp({ email, password, name, role_title, seniority }: SignUpData): Promise<{ error: string | null }> {
+  async function signUp({ email, password, name, role_title, seniority, isAdminOnly }: SignUpData): Promise<{ error: string | null }> {
     if (!email.endsWith('@bip-group.com')) {
       return { error: 'Only @bip-group.com email addresses are allowed' }
     }
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase!.auth.signUp({
       email,
       password,
-      options: { data: { name, role_title, seniority, status: 'pending' } },
+      options: { data: { name, role_title, seniority, status: 'pending', is_admin_only: isAdminOnly ?? false } },
     })
 
     if (error) return { error: error.message }

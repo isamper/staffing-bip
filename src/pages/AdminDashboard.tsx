@@ -454,7 +454,7 @@ export default function AdminDashboard() {
         .then(({ data }) => {
           if (!data) return
           const newHires = data.filter(
-            (p) => p.email && !knownEmails.has(p.email),
+            (p) => p.email && !knownEmails.has(p.email) && !p.is_admin_only,
           ) as Profile[]
           if (newHires.length > 0) {
             // Re-load deactivated IDs here so the async fetch respects deactivations
