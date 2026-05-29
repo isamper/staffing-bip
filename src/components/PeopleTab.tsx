@@ -265,7 +265,7 @@ interface PeopleTabProps {
 
 export default function PeopleTab({
   consultants, projects, assignments, beachAssignments, vacations,
-  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate,
+  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate, onSetAdminRole,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
