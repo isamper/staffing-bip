@@ -364,6 +364,11 @@ function saveToStorage<T>(key: string, data: T[]) {
 
 export default function AdminDashboard() {
   const [consultants, setConsultants] = useState<Profile[]>(mockConsultants)
+  // Deactivated IDs are tracked in their own state, seeded from localStorage on mount.
+  // This is intentionally separate from the consultants array so that Kimble imports,
+  // Supabase profile fetches, or any other setConsultants call cannot accidentally
+  // resurrect a deactivated consultant.
+  const [deactivatedIds, setDeactivatedIds] = useState<Set<string>>(() => loadDeactivatedIds())
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>(
@@ -689,10 +694,10 @@ export default function AdminDashboard() {
     selectedProject && !isActiveProject && selectedProject.positions?.length
       ? selectedProject.positions.map((pos) => ({
           position: pos,
-          results: matchConsultantsForPosition(pos, selectedProject, consultants, mockLikes, vacations, assignments),
+          results: matchConsultantsForPosition(pos, selectedProject, consultants.filter((c) => !deactivatedIds.has(c.id)), mockLikes, vacations, assignments),
         }))
       : selectedProject && !isActiveProject
-      ? [{ position: null, results: matchConsultants(selectedProject, consultants, mockLikes, vacations, assignments) }]
+      ? [{ position: null, results: matchConsultants(selectedProject, consultants.filter((c) => !deactivatedIds.has(c.id)), mockLikes, vacations, assignments) }]
       : []
 
   const assignedToSelected = assignments.filter((a) => {
@@ -830,14 +835,16 @@ export default function AdminDashboard() {
   }
 
   async function handleDeactivate(consultantId: string) {
-    // 1. Update UI and localStorage immediately
+    // 1. Update UI immediately — both the dedicated deactivatedIds state (primary)
+    //    and the consultants array (secondary, for backwards compat with matchers etc.)
     const consultant = consultants.find((c) => c.id === consultantId)
+    const newDeactivated = new Set(deactivatedIds)
+    newDeactivated.add(consultantId)
+    setDeactivatedIds(newDeactivated)
+    saveDeactivatedIds(newDeactivated)
     setConsultants((prev) =>
       prev.map((c) => c.id === consultantId ? { ...c, is_active: false } : c),
     )
-    const ids = loadDeactivatedIds()
-    ids.add(consultantId)
-    saveDeactivatedIds(ids)
 
     // 2. Delete their Supabase account so they can't log in
     // Use profile.email if available (new hires), otherwise derive from name
@@ -1398,7 +1405,7 @@ export default function AdminDashboard() {
         {/* People tab */}
         <TabsContent value="people">
           <PeopleTab
-            consultants={consultants}
+            consultants={consultants.filter((c) => !deactivatedIds.has(c.id))}
             projects={projects}
             assignments={assignments}
             beachAssignments={beachAssignments}
@@ -1415,7 +1422,7 @@ export default function AdminDashboard() {
         <TabsContent value="staffing">
           <AutoStaffingPlan
             projects={visibleProjects}
-            consultants={consultants}
+            consultants={consultants.filter((c) => !deactivatedIds.has(c.id))}
             assignments={assignments}
             vacations={vacations}
             likes={mockLikes}
