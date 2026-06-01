@@ -232,14 +232,17 @@ interface PeopleTabProps {
   onAddVacation: (consultantId: string, startDate: string, endDate: string, note: string) => void
   onRemoveVacation: (id: string) => void
   onDeactivate: (consultantId: string) => void
+  onSetAdminRole?: (consultantId: string, role: 'hr_admin' | 'consultant') => void
 }
 
 export default function PeopleTab({
   consultants, projects, assignments, beachAssignments, vacations,
-  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate,
+  onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate, onSetAdminRole,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false)
+  const [addAdminId, setAddAdminId] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [beachTarget, setBeachTarget] = useState<Profile | null>(null)
   const [beachForm, setBeachForm] = useState<{ taskType: BeachTaskType; description: string; endDate: string }>({
@@ -548,6 +551,86 @@ export default function PeopleTab({
       )}
 
       {!selectedConsultant && <>
+        {/* Admin management panel */}
+        {onSetAdminRole && (
+          <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50">
+            <button
+              onClick={() => setAdminPanelOpen((o) => !o)}
+              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-navy-800 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span>🔐</span> Gestión de Admins
+                <span className="rounded-full bg-navy-100 px-2 py-0.5 text-xs text-navy-700">
+                  {consultants.filter((c) => c.user_role === 'hr_admin').length}
+                </span>
+              </span>
+              <span className="text-slate-400">{adminPanelOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {adminPanelOpen && (
+              <div className="border-t border-slate-200 px-4 py-3 space-y-3">
+                {/* Current admins list */}
+                <div className="space-y-1.5">
+                  {consultants.filter((c) => c.user_role === 'hr_admin').length === 0 && (
+                    <p className="text-xs text-slate-400">No hay admins configurados.</p>
+                  )}
+                  {consultants
+                    .filter((c) => c.user_role === 'hr_admin')
+                    .map((c) => (
+                      <div key={c.id} className="flex items-center justify-between rounded-md bg-white border border-slate-200 px-3 py-2">
+                        <span className="text-sm text-slate-700">{c.name}
+                          <span className="ml-2 text-xs text-slate-400">{c.seniority}</span>
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Quitar acceso admin a ${c.name}?`)) {
+                              onSetAdminRole(c.id, 'consultant')
+                            }
+                          }}
+                          className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                </div>
+
+                {/* Add admin */}
+                <div className="flex items-center gap-2 pt-1">
+                  <select
+                    value={addAdminId}
+                    onChange={(e) => setAddAdminId(e.target.value)}
+                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-navy-400"
+                  >
+                    <option value="">Seleccionar consultor para promover…</option>
+                    {consultants
+                      .filter((c) => c.user_role !== 'hr_admin' && c.is_active)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} — {c.seniority}</option>
+                      ))}
+                  </select>
+                  <button
+                    disabled={!addAdminId}
+                    onClick={() => {
+                      if (addAdminId) {
+                        const c = consultants.find((x) => x.id === addAdminId)
+                        if (c && window.confirm(`¿Otorgar acceso admin a ${c.name}?`)) {
+                          onSetAdminRole(addAdminId, 'hr_admin')
+                          setAddAdminId('')
+                        }
+                      }
+                    }}
+                    className="rounded-md bg-navy-800 px-3 py-1.5 text-sm text-white hover:bg-navy-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Filter chips */}
         <div className="mb-4 flex flex-wrap gap-2">
           <FilterChip label="All" count={counts.all} active={filter === 'all'} color="navy" onClick={() => setFilter('all')} />

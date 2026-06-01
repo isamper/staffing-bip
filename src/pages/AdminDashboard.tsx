@@ -871,6 +871,45 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleSetAdminRole(consultantId: string, role: 'hr_admin' | 'consultant') {
+    const consultant = consultants.find((c) => c.id === consultantId)
+    if (!consultant) return
+
+    // Optimistic UI update
+    setConsultants((prev) =>
+      prev.map((c) => c.id === consultantId ? { ...c, user_role: role } : c),
+    )
+
+    if (!isDemoMode && supabase) {
+      const email = consultant.email ?? nameToEmail(consultant.name)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/set-user-role`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email, role }),
+            },
+          )
+          if (!res.ok) {
+            console.error('[handleSetAdminRole] Edge Function error')
+            // Revert on failure
+            setConsultants((prev) =>
+              prev.map((c) => c.id === consultantId ? { ...c, user_role: role === 'hr_admin' ? 'consultant' : 'hr_admin' } : c),
+            )
+          }
+        }
+      } catch (err) {
+        console.warn('[handleSetAdminRole] Failed:', err)
+      }
+    }
+  }
+
 
 
   function toggleReplacements(consultantId: string) {
@@ -1415,6 +1454,7 @@ export default function AdminDashboard() {
             onAddVacation={handleAddVacation}
             onRemoveVacation={handleRemoveVacation}
             onDeactivate={handleDeactivate}
+            onSetAdminRole={handleSetAdminRole}
           />
         </TabsContent>
 
