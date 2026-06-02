@@ -24,9 +24,11 @@ interface ProjectInfo {
 
 interface ConsultantStats {
   consultant: Profile
-  totalDedication: number
+  totalDedication: number   // project + beach dedication combined
   maxDedication: number
-  isOverDedicated: boolean
+  fatigueScore: number      // 0–1 composite: 30% carga + 30% sin descanso (placeholder) + 40% tendencia anual
+  fatigueLevel: 'normal' | 'vigilancia' | 'riesgo'
+  isAtFatigueRisk: boolean  // fatigueLevel === 'riesgo'
   isAvailable: boolean
   isRollingOff: boolean
   isOnProject: boolean
@@ -70,8 +72,10 @@ function FilterChip({
 // ─── consultant row ───────────────────────────────────────────────────────────
 
 function statusBadge(stats: ConsultantStats) {
-  if (stats.isOverDedicated)
-    return <Badge variant="destructive" className="shrink-0 text-xs gap-1"><AlertTriangle size={10} /> Over-dedicated</Badge>
+  if (stats.isAtFatigueRisk)
+    return <Badge variant="destructive" className="shrink-0 text-xs gap-1"><AlertTriangle size={10} /> Riesgo de fatiga</Badge>
+  if (stats.fatigueLevel === 'vigilancia')
+    return <Badge variant="warning" className="shrink-0 text-xs gap-1"><AlertTriangle size={10} /> En vigilancia</Badge>
   if (stats.isRollingOff)
     return <Badge variant="warning" className="shrink-0 text-xs gap-1"><Clock size={10} /> Rolling off</Badge>
   if (stats.isAvailable)
@@ -271,8 +275,29 @@ export default function PeopleTab({
         return proj ? new Date(proj.end_date) >= today : false
       })
 
-      const totalDedication = activeAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
+      const projectDedication = activeAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
+
+      // Active beach tasks — calculated early so we can include beach dedication in totalDedication
+      const activeBeachTasksEarly = beachAssignments.filter(
+        (b) => b.consultant_id === c.id && new Date(b.end_date) >= today,
+      )
+      const beachDedication = activeBeachTasksEarly.reduce((sum, b) => sum + b.dedication_percentage, 0)
+      const totalDedication = projectDedication + beachDedication
       const maxDedication = MAX_CARGABILITY[c.seniority] ?? 100
+
+      // ── Índice de Fatiga (composite, 30/30/40) ───────────────────────────────
+      // Pilar 1 — Carga actual (30%): project + beach dedication
+      const pilar1 = Math.min(totalDedication / 100, 1)
+      // Pilar 2 — Tiempo sin descanso (30%): placeholder — 0 until vacation tracking is complete
+      // TODO: activate when VacationRequest data is reliable
+      // const monthsNoVacation = ... ; const pilar2 = Math.min(monthsNoVacation, 6) / 6
+      const pilar2 = 0
+      // Pilar 3 — Tendencia anual (40%): from Kimble annual_dedication_pct; 0 if not yet available
+      const pilar3 = c.annual_dedication_pct != null ? Math.min(c.annual_dedication_pct / 100, 1) : 0
+
+      const fatigueScore = 0.30 * pilar1 + 0.30 * pilar2 + 0.40 * pilar3
+      const fatigueLevel: 'normal' | 'vigilancia' | 'riesgo' =
+        fatigueScore > 0.75 ? 'riesgo' : fatigueScore > 0.55 ? 'vigilancia' : 'normal'
 
       const projectsInfo: ProjectInfo[] = activeAssignments
         .map((a) => {
@@ -343,9 +368,8 @@ export default function PeopleTab({
         return end >= today && end <= in30
       })
 
-      const activeBeachTasks = beachAssignments.filter(
-        (b) => b.consultant_id === c.id && new Date(b.end_date) >= today,
-      )
+      // activeBeachTasksEarly already computed above; reuse it
+      const activeBeachTasks = activeBeachTasksEarly
       const pastBeachTasks = beachAssignments.filter(
         (b) => b.consultant_id === c.id && new Date(b.end_date) < today,
       )
@@ -357,11 +381,13 @@ export default function PeopleTab({
         consultant: c,
         totalDedication,
         maxDedication,
-        isOverDedicated: totalDedication > maxDedication,
+        fatigueScore,
+        fatigueLevel,
+        isAtFatigueRisk: fatigueLevel === 'riesgo',
         isAvailable: totalDedication === 0 && isAvailableNow(c.available_from),
         isRollingOff,
-        isOnProject: totalDedication > 0,
-        isOnBeach: totalDedication === 0,
+        isOnProject: projectDedication > 0,
+        isOnBeach: projectDedication === 0,
         activeBeachTasks,
         pastBeachTasks,
         pastVacations,
@@ -369,10 +395,10 @@ export default function PeopleTab({
         pastProjectsInfo,
       }
     })
-    // Sort: over-dedicated first, then rolling off, then on project, then beach, then available
+    // Sort: fatigue risk first, then vigilancia, then rolling off, then on project, then beach, then available
     .sort((a, b) => {
       const rank = (s: typeof a) =>
-        s.isOverDedicated ? 0 : s.isRollingOff ? 1 : s.isOnProject ? 2 : s.activeBeachTasks.length > 0 ? 3 : 4
+        s.isAtFatigueRisk ? 0 : s.fatigueLevel === 'vigilancia' ? 1 : s.isRollingOff ? 2 : s.isOnProject ? 3 : s.activeBeachTasks.length > 0 ? 4 : 5
       return rank(a) - rank(b)
     })
 
@@ -381,7 +407,7 @@ export default function PeopleTab({
     available: stats.filter((s) => s.isAvailable).length,
     on_project: stats.filter((s) => s.isOnProject).length,
     rolling_off: stats.filter((s) => s.isRollingOff).length,
-    over_dedicated: stats.filter((s) => s.isOverDedicated).length,
+    over_dedicated: stats.filter((s) => s.isAtFatigueRisk).length,
   }
 
   const filtered = stats
@@ -389,7 +415,7 @@ export default function PeopleTab({
       if (filter === 'available') return s.isAvailable
       if (filter === 'on_project') return s.isOnProject
       if (filter === 'rolling_off') return s.isRollingOff
-      if (filter === 'over_dedicated') return s.isOverDedicated
+      if (filter === 'over_dedicated') return s.isAtFatigueRisk
       return true
     })
     .filter((s) => {
@@ -658,7 +684,7 @@ export default function PeopleTab({
           <FilterChip label="Available Now" count={counts.available} active={filter === 'available'} color="green" onClick={() => setFilter('available')} />
           <FilterChip label="On Project" count={counts.on_project} active={filter === 'on_project'} color="blue" onClick={() => setFilter('on_project')} />
           <FilterChip label="Rolling Off (30d)" count={counts.rolling_off} active={filter === 'rolling_off'} color="amber" onClick={() => setFilter('rolling_off')} />
-          <FilterChip label="Over-dedicated" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => setFilter('over_dedicated')} />
+          <FilterChip label="Riesgo de fatiga" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => setFilter('over_dedicated')} />
         </div>
 
         {/* Search */}
