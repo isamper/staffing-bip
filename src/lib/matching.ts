@@ -126,7 +126,7 @@ export function scoreConsultant(
 }
 
 /**
- * Find replacement candidates for an over-dedicated consultant on a given project.
+ * Find replacement candidates for a consultant with riesgo de fatiga on a given project.
  * Candidates must: be active, not already on the project, have adjacent seniority,
  * and share at least one skill with the consultant being replaced.
  */

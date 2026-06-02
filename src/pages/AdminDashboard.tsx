@@ -28,6 +28,7 @@ import AutoStaffingPlan from '@/components/AutoStaffingPlan'
 import KimbleImportModal from '@/components/KimbleImportModal'
 import type { KimbleImportResult } from '@/lib/kimbleParser'
 import type { Profile, Project, VacationRequest, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
+import { computeFatigue, getBeachDedication } from '@/lib/fatigue'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -189,6 +190,7 @@ interface AssignedMemberRowProps {
   project: Project
   assignments: ProjectAssignment[]
   vacations: VacationRequest[]
+  beachAssignments: BeachAssignment[]
   replacementsFor: string | null
   onToggleReplacements: (id: string) => void
   onUnassign: () => void
@@ -202,11 +204,15 @@ function AssignedMemberRow({
   project,
   assignments,
   vacations,
+  beachAssignments,
   replacementsFor,
   onToggleReplacements,
   onUnassign,
 }: AssignedMemberRowProps) {
-  const isOver = totalDedication > maxDedication
+  const today = new Date()
+  const beachDed = getBeachDedication(consultant.id, beachAssignments, today)
+  const { level: fatigueLevel } = computeFatigue(consultant, totalDedication, beachDed, vacations)
+  const isOver = fatigueLevel === 'riesgo' || fatigueLevel === 'vigilancia'
   const showingReplacements = replacementsFor === consultant.id
 
   // Vacation overlap with project
@@ -256,8 +262,11 @@ function AssignedMemberRow({
           <p className="mt-0.5 text-xs text-slate-400">
             {assignment.start_date ? `${formatDate(assignment.start_date)} – ` : ''}{formatDate(assignment.end_date ?? project.end_date)}
           </p>
-          {isOver && (
-            <Badge variant="destructive" className="mt-1 text-xs">Over dedicated</Badge>
+          {fatigueLevel === 'riesgo' && (
+            <Badge variant="destructive" className="mt-1 text-xs">Riesgo de fatiga</Badge>
+          )}
+          {fatigueLevel === 'vigilancia' && (
+            <Badge variant="warning" className="mt-1 text-xs">En vigilancia</Badge>
           )}
         </div>
       </div>
@@ -1242,11 +1251,13 @@ export default function AdminDashboard() {
                               </Button>
                               {assignedConsultants.some(({ consultant }) => {
                                 const total = getTotalDedication(consultant.id, assignments, today)
-                                return total > (MAX_CARGABILITY[consultant.seniority] ?? 100)
+                                const beach = getBeachDedication(consultant.id, beachAssignments, today)
+                                const { level } = computeFatigue(consultant, total, beach, vacations)
+                                return level !== 'normal'
                               }) && (
                                 <span className="flex items-center gap-1 text-xs text-red-600">
                                   <AlertTriangle size={12} />
-                                  Over-dedicated members
+                                  Riesgo de fatiga en el equipo
                                 </span>
                               )}
                             </div>
@@ -1265,6 +1276,7 @@ export default function AdminDashboard() {
                                   project={selectedProject}
                                   assignments={assignments}
                                   vacations={vacations}
+                                  beachAssignments={beachAssignments}
                                   replacementsFor={replacementsFor}
                                   onToggleReplacements={toggleReplacements}
                                   onUnassign={() => handleUnassign(assignment.id)}

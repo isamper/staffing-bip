@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, AlertTriangle, Clock, ChevronRight, Info, Umbrella, X, CalendarOff } from 'lucide-react'
 import { MAX_CARGABILITY } from '@/lib/constants'
+import { computeFatigue } from '@/lib/fatigue'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -286,18 +287,9 @@ export default function PeopleTab({
       const maxDedication = MAX_CARGABILITY[c.seniority] ?? 100
 
       // ── Índice de Fatiga (composite, 30/30/40) ───────────────────────────────
-      // Pilar 1 — Carga actual (30%): project + beach dedication
-      const pilar1 = Math.min(totalDedication / 100, 1)
-      // Pilar 2 — Tiempo sin descanso (30%): placeholder — 0 until vacation tracking is complete
-      // TODO: activate when VacationRequest data is reliable
-      // const monthsNoVacation = ... ; const pilar2 = Math.min(monthsNoVacation, 6) / 6
-      const pilar2 = 0
-      // Pilar 3 — Tendencia anual (40%): from Kimble annual_dedication_pct; 0 if not yet available
-      const pilar3 = c.annual_dedication_pct != null ? Math.min(c.annual_dedication_pct / 100, 1) : 0
-
-      const fatigueScore = 0.30 * pilar1 + 0.30 * pilar2 + 0.40 * pilar3
-      const fatigueLevel: 'normal' | 'vigilancia' | 'riesgo' =
-        fatigueScore > 0.75 ? 'riesgo' : fatigueScore > 0.55 ? 'vigilancia' : 'normal'
+      const { score: fatigueScore, level: fatigueLevel } = computeFatigue(
+        c, projectDedication, beachDedication, vacations,
+      )
 
       const projectsInfo: ProjectInfo[] = activeAssignments
         .map((a) => {
