@@ -786,13 +786,14 @@ export default function AdminDashboard() {
     })
   }
 
-  function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string) {
+  function handleAssignBeach(consultantId: string, taskType: BeachTaskType, description: string, endDate: string, dedication: number) {
     const newEntry: BeachAssignment = {
       id: `beach-${Date.now()}`,
       consultant_id: consultantId,
       task_type: taskType,
       description,
       end_date: endDate,
+      dedication_percentage: dedication,
       assigned_at: new Date().toISOString(),
     }
     setBeachAssignments((prev) => {

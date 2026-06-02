@@ -227,7 +227,7 @@ interface PeopleTabProps {
   assignments: ProjectAssignment[]
   beachAssignments: BeachAssignment[]
   vacations: VacationRequest[]
-  onAssignBeach: (consultantId: string, taskType: BeachTaskType, description: string, endDate: string) => void
+  onAssignBeach: (consultantId: string, taskType: BeachTaskType, description: string, endDate: string, dedication: number) => void
   onRemoveBeach: (id: string) => void
   onAddVacation: (consultantId: string, startDate: string, endDate: string, note: string) => void
   onRemoveVacation: (id: string) => void
@@ -245,10 +245,11 @@ export default function PeopleTab({
   const [addAdminId, setAddAdminId] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [beachTarget, setBeachTarget] = useState<Profile | null>(null)
-  const [beachForm, setBeachForm] = useState<{ taskType: BeachTaskType; description: string; endDate: string }>({
+  const [beachForm, setBeachForm] = useState<{ taskType: BeachTaskType; description: string; endDate: string; dedication: number }>({
     taskType: 'Propuesta',
     description: '',
     endDate: '',
+    dedication: 100,
   })
   const [vacationTarget, setVacationTarget] = useState<Profile | null>(null)
   const [vacationForm, setVacationForm] = useState({ startDate: '', endDate: '', note: '' })
@@ -408,12 +409,12 @@ export default function PeopleTab({
 
   function openBeachModal(consultant: Profile) {
     setBeachTarget(consultant)
-    setBeachForm({ taskType: 'Propuesta', description: '', endDate: '' })
+    setBeachForm({ taskType: 'Propuesta', description: '', endDate: '', dedication: 100 })
   }
 
   function submitBeachAssignment() {
     if (!beachTarget || !beachForm.description.trim() || !beachForm.endDate) return
-    onAssignBeach(beachTarget.id, beachForm.taskType, beachForm.description.trim(), beachForm.endDate)
+    onAssignBeach(beachTarget.id, beachForm.taskType, beachForm.description.trim(), beachForm.endDate, beachForm.dedication)
     setBeachTarget(null)
   }
 
@@ -467,6 +468,24 @@ export default function PeopleTab({
                 value={beachForm.endDate}
                 onChange={(e) => setBeachForm((f) => ({ ...f, endDate: e.target.value }))}
               />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
+                <span>Dedicación</span>
+                <span className="text-navy-800 font-semibold">{beachForm.dedication}%</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={beachForm.dedication}
+                onChange={(e) => setBeachForm((f) => ({ ...f, dedication: Number(e.target.value) }))}
+                className="w-full accent-amber-500"
+              />
+              <div className="flex justify-between text-xs text-slate-400 mt-0.5">
+                <span>0%</span><span>50%</span><span>100%</span>
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3 bg-slate-50">
@@ -669,55 +688,59 @@ export default function PeopleTab({
           {filtered.map((s) => (
             <div key={s.consultant.id}>
               <ConsultantRow stats={s} onClick={() => setSelectedId(s.consultant.id)} onRemoveVacation={onRemoveVacation} onDeactivate={onDeactivate} />
-              {/* Beach tasks row */}
-              {(s.activeBeachTasks.length > 0 || s.pastBeachTasks.length > 0 || s.isOnBeach) && (
-                <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
-                  {/* Active beach tasks */}
-                  {s.activeBeachTasks.map((b) => (
-                    <span
-                      key={b.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
-                    >
-                      <Umbrella size={10} />
-                      <span className="font-medium">{b.task_type}</span>
-                      <span className="text-amber-500">— {b.description}</span>
-                      <span className="text-amber-400">· {formatDate(b.end_date)}</span>
-                      <button
-                        onClick={() => onRemoveBeach(b.id)}
-                        className="ml-0.5 text-amber-400 hover:text-amber-600 transition-colors"
-                        title="Eliminar tarea"
-                      >
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))}
-                  {/* Past beach tasks */}
-                  {s.pastBeachTasks.map((b) => (
-                    <span
-                      key={b.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
-                    >
-                      <Umbrella size={10} />
-                      <span>{b.task_type} — {b.description}</span>
-                      <span>· {formatDate(b.end_date)}</span>
-                      <span className="rounded-full bg-slate-200 px-1 text-slate-500 font-medium">pasada</span>
-                      <button
-                        onClick={() => onRemoveBeach(b.id)}
-                        className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
-                        title="Eliminar tarea"
-                      >
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))}
-                  <button
-                    onClick={() => openBeachModal(s.consultant)}
-                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-amber-300 px-2 py-0.5 text-xs text-amber-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
+              {/* Beach tasks row — always visible so any consultant can get a task */}
+              <div className="ml-12 -mt-1 mb-1 flex flex-wrap gap-1.5 px-3">
+                {/* Active beach tasks */}
+                {s.activeBeachTasks.map((b) => (
+                  <span
+                    key={b.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
                   >
-                    + Agregar tarea de playa
-                  </button>
-                </div>
-              )}
+                    <Umbrella size={10} />
+                    <span className="font-medium">{b.task_type}</span>
+                    <span className="text-amber-500">— {b.description}</span>
+                    <span className="text-amber-400">· {formatDate(b.end_date)}</span>
+                    {b.dedication_percentage != null && (
+                      <span className="text-amber-400">· {b.dedication_percentage}%</span>
+                    )}
+                    <button
+                      onClick={() => onRemoveBeach(b.id)}
+                      className="ml-0.5 text-amber-400 hover:text-amber-600 transition-colors"
+                      title="Eliminar tarea"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                {/* Past beach tasks */}
+                {s.pastBeachTasks.map((b) => (
+                  <span
+                    key={b.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-400"
+                  >
+                    <Umbrella size={10} />
+                    <span>{b.task_type} — {b.description}</span>
+                    <span>· {formatDate(b.end_date)}</span>
+                    {b.dedication_percentage != null && (
+                      <span>· {b.dedication_percentage}%</span>
+                    )}
+                    <span className="rounded-full bg-slate-200 px-1 text-slate-500 font-medium">pasada</span>
+                    <button
+                      onClick={() => onRemoveBeach(b.id)}
+                      className="ml-0.5 text-slate-300 hover:text-slate-500 transition-colors"
+                      title="Eliminar tarea"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  onClick={() => openBeachModal(s.consultant)}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-amber-300 px-2 py-0.5 text-xs text-amber-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
+                >
+                  + Agregar tarea de playa
+                </button>
+              </div>
               {/* Vacations row — active (blue) + past (gray) */}
               {(() => {
                 const activeVacations = vacations.filter(v => v.consultant_id === s.consultant.id && new Date(v.end_date) >= today)

@@ -118,6 +118,7 @@ export interface BeachAssignment {
   task_type: BeachTaskType
   description: string
   end_date: string
+  dedication_percentage: number
   assigned_at: string
 }
 
