@@ -854,7 +854,8 @@ export default function AdminDashboard() {
       }),
     )
 
-    setLastImport(result.fileName)
+    // Only update the displayed file name on a direct import (not on DB refreshes)
+    if (!opts.skipAssignments) setLastImport(result.fileName)
 
     // Persist the import result so it survives page reloads
     if (!isDemoMode && supabase) {
