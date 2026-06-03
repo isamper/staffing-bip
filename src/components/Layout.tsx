@@ -14,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login')
   }
 
-  const dualAccess = profile ? canAccessBothViews(profile) : false
+  const dualAccess = profile ? canAccessBothViews(profile) && !profile.is_admin_only : false
   const isOnAdminView = location.pathname.startsWith('/admin')
   const dashboardPath = profile?.user_role === 'hr_admin' ? '/admin' : '/employee'
 
