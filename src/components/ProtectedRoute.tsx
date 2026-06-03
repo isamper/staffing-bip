@@ -33,6 +33,8 @@ export default function ProtectedRoute({ children, role }: Props) {
   // regardless of their seniority. This prevents Manager-seniority sign-ups from
   // bypassing the approval step and accessing /admin before being approved.
   if (!profile.is_active && role === 'hr_admin') return <Navigate to="/employee" replace />
+  // Admin-only users have no consultant profile — block them from /employee entirely.
+  if (profile.is_admin_only && role === 'consultant') return <Navigate to="/admin" replace />
   // Users with dual-view access can visit both /admin and /employee
   if (role && profile.user_role !== role && !canAccessBothViews(profile)) {
     return <Navigate to="/employee" replace />
