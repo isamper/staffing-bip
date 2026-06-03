@@ -19,9 +19,9 @@ export interface FatigueResult {
  *   Pilar 3 — Tendencia anual   (40%): annual_dedication_pct / 100 (0 if not yet imported from Kimble)
  *
  * Thresholds:
- *   > 0.75  → 'riesgo'     (Riesgo de fatiga — red)
- *   > 0.55  → 'vigilancia' (En vigilancia — amber)
- *   ≤ 0.55  → 'normal'
+ *   > 0.90  → 'riesgo'     (Riesgo de fatiga — red)
+ *   > 0.80  → 'vigilancia' (En vigilancia — amber)
+ *   ≤ 0.80  → 'normal'
  */
 export function computeFatigue(
   consultant: Profile,
@@ -52,7 +52,7 @@ export function computeFatigue(
 
   const score = 0.30 * pilar1 + 0.30 * pilar2 + 0.40 * pilar3
   const level: FatigueLevel =
-    score > 0.75 ? 'riesgo' : score > 0.55 ? 'vigilancia' : 'normal'
+    score > 0.90 ? 'riesgo' : score > 0.80 ? 'vigilancia' : 'normal'
 
   return { score, level, pilar1, pilar2, pilar3 }
 }
