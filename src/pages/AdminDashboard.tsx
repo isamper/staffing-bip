@@ -554,10 +554,18 @@ export default function AdminDashboard() {
     if (isDemoMode || !supabase) return
     const yearStart = `${new Date().getFullYear()}-01-01`
 
+    // Clear the reload guard after 4 s so the next Kimble import can trigger a reload again.
+    // The guard prevents the infinite-reload loop caused by Supabase Realtime replaying the
+    // last event when the subscription reconnects after a page refresh.
+    setTimeout(() => sessionStorage.removeItem('bench_kimble_reloading'), 4000)
+
     const channel = supabase
       .channel('admin-realtime')
-      // Kimble import: reload the page so the new import is fully applied (rare action)
+      // Kimble import: reload once so the new import is fully applied.
+      // sessionStorage guard prevents the Realtime replay from causing an infinite loop.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' }, () => {
+        if (sessionStorage.getItem('bench_kimble_reloading')) return
+        sessionStorage.setItem('bench_kimble_reloading', '1')
         window.location.reload()
       })
       // Project assignments: re-fetch and update state
