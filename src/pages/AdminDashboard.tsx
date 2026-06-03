@@ -473,8 +473,9 @@ export default function AdminDashboard() {
         .then(({ data }) => {
           if (data && data.length > 0) {
             const row = data[0]
+            lastKimbleTs.current = row.imported_at
             handleKimbleImport(row.data as KimbleImportResult, { skipAssignments: true })
-            setLastImport(row.file_name ?? null)
+            if (row.file_name) setLastImport(row.file_name)
           }
         })
 
@@ -593,7 +594,7 @@ export default function AdminDashboard() {
       supabase.from('kimble_cache').select('*').limit(1).then(({ data }) => {
         if (data && data.length > 0) {
           handleKimbleImport(data[0].data as KimbleImportResult, { skipAssignments: true })
-          setLastImport(data[0].file_name ?? null)
+          if (data[0].file_name) setLastImport(data[0].file_name)
         }
       })
       // Also refresh assignments since a Kimble import replaces them
@@ -860,7 +861,7 @@ export default function AdminDashboard() {
       supabase
         .from('kimble_cache')
         .upsert({ id: 1, data: result, file_name: result.fileName, imported_at: result.importedAt })
-        .then(() => {})
+        .then(() => { lastKimbleTs.current = result.importedAt })
     } else {
       try {
         localStorage.setItem(KIMBLE_STORAGE_KEY, JSON.stringify(result))
