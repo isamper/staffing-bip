@@ -914,6 +914,7 @@ mockConsultants.forEach((c) => {
   }
 })
 
+
 export const mockVacationRequests: VacationRequest[] = [
   {
     id: 'v1',

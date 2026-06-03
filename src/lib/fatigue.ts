@@ -23,29 +23,39 @@ export interface FatigueResult {
  *   > 0.80  → 'vigilancia' (En vigilancia — amber)
  *   ≤ 0.80  → 'normal'
  */
+/** Whole-month difference between two dates (floored). */
+function monthsBetween(from: Date, to: Date): number {
+  return Math.max(0,
+    (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()),
+  )
+}
+
 export function computeFatigue(
   consultant: Profile,
-  projectDedication: number,     // sum of active project assignment dedication %
-  beachDedication: number,       // sum of active beach task dedication %
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _vacations: VacationRequest[], // reserved for Pilar 2 — not used yet
+  projectDedication: number,  // sum of active project assignment dedication %
+  beachDedication: number,    // sum of active beach task dedication %
+  vacations: VacationRequest[],
 ): FatigueResult {
+  const today = new Date()
+
   // Pilar 1 — Carga actual (30%)
   const totalDedication = projectDedication + beachDedication
   const pilar1 = Math.min(totalDedication / 100, 1)
 
   // Pilar 2 — Tiempo sin descanso (30%)
-  // TODO: activate when VacationRequest data is complete
-  // const lastVacation = _vacations
-  //   .filter(v => v.consultant_id === consultant.id && new Date(v.end_date) <= new Date())
-  //   .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
-  // const monthsNoRest = lastVacation
-  //   ? monthsBetween(new Date(lastVacation.end_date), new Date())
-  //   : monthsBetween(new Date(consultant.created_at), new Date())
-  // const pilar2 = Math.min(monthsNoRest, 6) / 6
-  const pilar2 = 0
+  // If no vacation records exist we assume the consultant has not rested since
+  // their hire date (created_at). When real vacation data is added later the
+  // score recalculates automatically and will decrease for those who took time off.
+  const lastVacation = vacations
+    .filter(v => v.consultant_id === consultant.id && new Date(v.end_date) <= today)
+    .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
+  const referenceDate = lastVacation
+    ? new Date(lastVacation.end_date)
+    : new Date(consultant.created_at)
+  const monthsNoRest = monthsBetween(referenceDate, today)
+  const pilar2 = Math.min(monthsNoRest, 6) / 6
 
-  // Pilar 3 — Tendencia anual (40%): from Kimble; 0 if not yet available
+  // Pilar 3 — Tendencia anual (40%): from Kimble annual_dedication_pct; 0 if not yet imported
   const pilar3 = consultant.annual_dedication_pct != null
     ? Math.min(consultant.annual_dedication_pct / 100, 1)
     : 0
