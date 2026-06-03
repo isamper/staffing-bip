@@ -547,6 +547,54 @@ export default function AdminDashboard() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Supabase Realtime subscriptions ─────────────────────────────────────────
+  // Keeps all admin browsers in sync automatically when any admin makes a change.
+  // Requires Realtime enabled on these tables (run migration_enable_realtime.sql in Supabase).
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    const yearStart = `${new Date().getFullYear()}-01-01`
+
+    const channel = supabase
+      .channel('admin-realtime')
+      // Kimble import: reload the page so the new import is fully applied (rare action)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' }, () => {
+        window.location.reload()
+      })
+      // Project assignments: re-fetch and update state
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_assignments' }, () => {
+        supabase!.from('project_assignments').select('*').then(({ data }) => {
+          if (data) setAssignments(data as ProjectAssignment[])
+        })
+      })
+      // Beach assignments: re-fetch current year
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beach_assignments' }, () => {
+        supabase!.from('beach_assignments').select('*').gte('end_date', yearStart).then(({ data }) => {
+          if (data) setBeachAssignments(data as BeachAssignment[])
+        })
+      })
+      // Vacation requests: re-fetch current year
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vacation_requests' }, () => {
+        supabase!.from('vacation_requests').select('*').gte('end_date', yearStart).then(({ data }) => {
+          if (data) setVacations(data as VacationRequest[])
+        })
+      })
+      // Deactivations: re-fetch and update consultants
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deactivated_consultants' }, () => {
+        supabase!.from('deactivated_consultants').select('consultant_id').then(({ data }) => {
+          if (data) {
+            const deactivated = new Set(data.map((r) => r.consultant_id as string))
+            setDeactivatedIds(deactivated)
+            setConsultants((prev) =>
+              prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
+            )
+          }
+        })
+      })
+      .subscribe()
+
+    return () => { supabase!.removeChannel(channel) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch pending users from Edge Function on mount (real mode only)
   useEffect(() => {
     if (isDemoMode || !supabase) return
