@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Search, Heart,
   AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus,
@@ -548,56 +548,80 @@ export default function AdminDashboard() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Supabase Realtime subscriptions ─────────────────────────────────────────
-  // Keeps all admin browsers in sync automatically when any admin makes a change.
-  // Requires Realtime enabled on these tables (run migration_enable_realtime.sql in Supabase).
+  // refreshFnRef holds the latest version of the per-table refresh functions so the
+  // Realtime callbacks (set up once on mount) always call fresh closures with current state.
+  const refreshFnRef = useRef<{
+    kimble: () => void
+    assignments: () => void
+    beach: () => void
+    vacations: () => void
+    deactivated: () => void
+  } | null>(null)
+
+  // Update ref on every render — no stale-closure problem in Realtime callbacks.
+  const yearStartStr = `${new Date().getFullYear()}-01-01`
+  refreshFnRef.current = {
+    kimble: () => {
+      if (!supabase) return
+      // Re-apply Kimble enrichments (projects + consultant dedications/areas)
+      supabase.from('kimble_cache').select('*').limit(1).then(({ data }) => {
+        if (data && data.length > 0) {
+          handleKimbleImport(data[0].data as KimbleImportResult, { skipAssignments: true })
+          setLastImport(data[0].file_name ?? null)
+        }
+      })
+      // Also refresh assignments since a Kimble import replaces them
+      supabase.from('project_assignments').select('*').then(({ data }) => {
+        if (data && data.length > 0) setAssignments(data as ProjectAssignment[])
+      })
+    },
+    assignments: () => {
+      if (!supabase) return
+      supabase.from('project_assignments').select('*').then(({ data }) => {
+        if (data) setAssignments(data as ProjectAssignment[])
+      })
+    },
+    beach: () => {
+      if (!supabase) return
+      supabase.from('beach_assignments').select('*').gte('end_date', yearStartStr).then(({ data }) => {
+        if (data) setBeachAssignments(data as BeachAssignment[])
+      })
+    },
+    vacations: () => {
+      if (!supabase) return
+      supabase.from('vacation_requests').select('*').gte('end_date', yearStartStr).then(({ data }) => {
+        if (data) setVacations(data as VacationRequest[])
+      })
+    },
+    deactivated: () => {
+      if (!supabase) return
+      supabase.from('deactivated_consultants').select('consultant_id').then(({ data }) => {
+        if (data) {
+          const deactivated = new Set(data.map((r) => r.consultant_id as string))
+          setDeactivatedIds(deactivated)
+          setConsultants((prev) =>
+            prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
+          )
+        }
+      })
+    },
+  }
+
   useEffect(() => {
     if (isDemoMode || !supabase) return
-    const yearStart = `${new Date().getFullYear()}-01-01`
-
-    // Clear the reload guard after 4 s so the next Kimble import can trigger a reload again.
-    // The guard prevents the infinite-reload loop caused by Supabase Realtime replaying the
-    // last event when the subscription reconnects after a page refresh.
-    setTimeout(() => sessionStorage.removeItem('bench_kimble_reloading'), 4000)
 
     const channel = supabase
       .channel('admin-realtime')
-      // Kimble import: reload once so the new import is fully applied.
-      // sessionStorage guard prevents the Realtime replay from causing an infinite loop.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' }, () => {
-        if (sessionStorage.getItem('bench_kimble_reloading')) return
-        sessionStorage.setItem('bench_kimble_reloading', '1')
-        window.location.reload()
-      })
-      // Project assignments: re-fetch and update state
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_assignments' }, () => {
-        supabase!.from('project_assignments').select('*').then(({ data }) => {
-          if (data) setAssignments(data as ProjectAssignment[])
-        })
-      })
-      // Beach assignments: re-fetch current year
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beach_assignments' }, () => {
-        supabase!.from('beach_assignments').select('*').gte('end_date', yearStart).then(({ data }) => {
-          if (data) setBeachAssignments(data as BeachAssignment[])
-        })
-      })
-      // Vacation requests: re-fetch current year
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vacation_requests' }, () => {
-        supabase!.from('vacation_requests').select('*').gte('end_date', yearStart).then(({ data }) => {
-          if (data) setVacations(data as VacationRequest[])
-        })
-      })
-      // Deactivations: re-fetch and update consultants
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deactivated_consultants' }, () => {
-        supabase!.from('deactivated_consultants').select('consultant_id').then(({ data }) => {
-          if (data) {
-            const deactivated = new Set(data.map((r) => r.consultant_id as string))
-            setDeactivatedIds(deactivated)
-            setConsultants((prev) =>
-              prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
-            )
-          }
-        })
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' },
+        () => refreshFnRef.current?.kimble())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_assignments' },
+        () => refreshFnRef.current?.assignments())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beach_assignments' },
+        () => refreshFnRef.current?.beach())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vacation_requests' },
+        () => refreshFnRef.current?.vacations())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deactivated_consultants' },
+        () => refreshFnRef.current?.deactivated())
       .subscribe()
 
     return () => { supabase!.removeChannel(channel) }
