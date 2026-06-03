@@ -955,6 +955,7 @@ export const DEMO_USERS = {
       internship_end_date: null,
       user_role: 'hr_admin' as const,
       is_active: true,
+      is_admin_only: true,
       created_at: '2025-01-01T00:00:00Z',
       bio: null, education: null, languages: null, years_of_experience: null, certifications: [], experience: [],
     },
