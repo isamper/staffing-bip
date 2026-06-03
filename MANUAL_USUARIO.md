@@ -107,6 +107,8 @@ Accede al **Vista Admin**, que incluye todas las funcionalidades de gestión:
 
 Por defecto, tienen rol de HR Admin todos los consultores con seniority **Manager, Senior Manager, Director, Partner y Senior Partner**. Otros perfiles deben ser promovidos manualmente por un admin existente (ver sección [Gestión de Admins](#gestión-de-admins)). Igualmente, cuando un consultor sea promovido a Manager, se le debe otorgar acceso de admin manualmente desde ese mismo panel.
 
+Estos usuarios tienen acceso a **ambas vistas**: Vista Admin (para gestionar el equipo) y Vista Consultor (para ver y editar su propia hoja de vida), ya que son simultáneamente consultores y administradores. En el header aparece un botón para alternar entre las dos vistas.
+
 ### 3.2 Consultor (`consultant`)
 
 Accede al **Employee Dashboard**, que incluye:
@@ -121,6 +123,11 @@ El consultor **no puede** ver información de otros consultores (salvo el direct
 ### 3.3 Usuario solo administrativo
 
 Es un perfil que solo tiene acceso de HR Admin pero **no tiene hoja de vida de consultor** ni puede ser asignado a proyectos. Se crea marcando la casilla "Solo tengo rol administrativo" durante el sign up. Ejemplo: Martha Martínez.
+
+A diferencia de los admins con perfil de consultor, estos usuarios:
+- **No tienen el botón "Vista Consultor"** en el header — solo ven la Vista Admin
+- **No aparecen en la lista de consultores** del Tab People
+- **No son sugeridos como candidatos** en el staffing ni en el plan automático
 
 ### 3.4 Dar de baja — Consecuencias
 
