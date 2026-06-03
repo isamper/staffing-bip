@@ -547,6 +547,32 @@ export default function AdminDashboard() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Polling fallback (every 10 s) ────────────────────────────────────────────
+  // Guarantees sync even when Realtime events are missed.
+  const lastKimbleTs = useRef<string | null>(null)
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    const yearStart = `${new Date().getFullYear()}-01-01`
+
+    async function poll() {
+      if (!supabase) return
+      // Kimble — only re-apply if the timestamp changed
+      const { data: kc } = await supabase.from('kimble_cache').select('imported_at, file_name, data').limit(1)
+      if (kc && kc.length > 0 && kc[0].imported_at !== lastKimbleTs.current) {
+        lastKimbleTs.current = kc[0].imported_at
+        refreshFnRef.current?.kimble()
+      }
+      // Other tables — always sync
+      refreshFnRef.current?.assignments()
+      refreshFnRef.current?.beach()
+      refreshFnRef.current?.vacations()
+      refreshFnRef.current?.deactivated()
+    }
+
+    const id = setInterval(poll, 10_000)
+    return () => clearInterval(id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Supabase Realtime subscriptions ─────────────────────────────────────────
   // refreshFnRef holds the latest version of the per-table refresh functions so the
   // Realtime callbacks (set up once on mount) always call fresh closures with current state.
