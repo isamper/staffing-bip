@@ -28,7 +28,8 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS annual_dedication_pct numeric,
   ADD COLUMN IF NOT EXISTS industry_experience   text[],
   ADD COLUMN IF NOT EXISTS kimble_service_areas  text[],
-  ADD COLUMN IF NOT EXISTS kimble_name      text;   -- exact name as it appears in Kimble
+  ADD COLUMN IF NOT EXISTS kimble_name      text,   -- exact name as it appears in Kimble
+  ADD COLUMN IF NOT EXISTS is_admin_only    boolean DEFAULT false; -- true for HR-only users who are not consultants
 
 -- 2. Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -67,6 +68,7 @@ BEGIN
     seniority,
     user_role,
     is_active,
+    is_admin_only,
     skills,
     certifications,
     experience,
@@ -79,8 +81,10 @@ BEGIN
              initcap(replace(split_part(NEW.email, '@', 1), '.', ' '))),
     COALESCE(NEW.raw_user_meta_data->>'role_title', 'Consultor'),
     COALESCE(NEW.raw_user_meta_data->>'seniority',  'Consultant'),
-    'consultant',
+    -- Admin-only users get hr_admin role immediately; approval step will confirm it
+    CASE WHEN (NEW.raw_user_meta_data->>'is_admin_only')::boolean THEN 'hr_admin' ELSE 'consultant' END,
     true,
+    COALESCE((NEW.raw_user_meta_data->>'is_admin_only')::boolean, false),
     '{}',
     '{}',
     '[]',

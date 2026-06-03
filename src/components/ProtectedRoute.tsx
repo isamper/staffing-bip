@@ -29,6 +29,10 @@ export default function ProtectedRoute({ children, role }: Props) {
   }
 
   if (!profile) return <Navigate to="/login" replace />
+  // Pending users must always land on /employee (which renders the pending screen),
+  // regardless of their seniority. This prevents Manager-seniority sign-ups from
+  // bypassing the approval step and accessing /admin before being approved.
+  if (!profile.is_active && role === 'hr_admin') return <Navigate to="/employee" replace />
   // Users with dual-view access can visit both /admin and /employee
   if (role && profile.user_role !== role && !canAccessBothViews(profile)) {
     return <Navigate to="/employee" replace />

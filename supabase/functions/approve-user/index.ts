@@ -78,6 +78,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Fetch the user's metadata before approving — needed to check is_admin_only
+    const { data: { user: targetUser }, error: fetchError } = await adminClient.auth.admin.getUserById(userId);
+    if (fetchError || !targetUser) {
+      throw new Error(fetchError?.message ?? "User not found");
+    }
+    const isAdminOnly = targetUser.user_metadata?.is_admin_only === true;
+
     // Approve the user: update user_metadata AND profiles table
     const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       user_metadata: { status: "approved" },
@@ -87,10 +94,17 @@ Deno.serve(async (req: Request) => {
       throw new Error(updateError.message);
     }
 
-    // Also flip is_active in the profiles table so the dashboard unlocks on next refresh
+    // Flip is_active in the profiles table. For admin-only users also promote to hr_admin
+    // and mark is_admin_only so they are excluded from consultant lists.
+    const profileUpdate: Record<string, unknown> = { is_active: true };
+    if (isAdminOnly) {
+      profileUpdate.user_role = "hr_admin";
+      profileUpdate.is_admin_only = true;
+    }
+
     const { error: profileError } = await adminClient
       .from("profiles")
-      .update({ is_active: true })
+      .update(profileUpdate)
       .eq("id", userId);
 
     if (profileError) {
