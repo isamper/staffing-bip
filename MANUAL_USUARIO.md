@@ -46,13 +46,13 @@
 
 ## 2. Acceso a la aplicación
 
-La aplicación está disponible en: **https://project-staffing.lovable.app/**
+La aplicación está disponible en: **https://staffing-bip.vercel.app/**
 
 ### 2.1 Sign up — Registro de nuevo usuario
 
 Los nuevos integrantes del equipo deben registrarse por primera vez en la pantalla de inicio. El proceso es el siguiente:
 
-1. Hacer clic en **"¿No tienes cuenta? Regístrate"**
+1. Hacer clic en **"Sign Up"**
 2. Diligenciar los campos:
    - **Nombre completo**
    - **Correo electrónico** (debe ser @bip-group.com)
@@ -73,7 +73,9 @@ Los usuarios con cuenta activa ingresan con su correo @bip-group.com y contrase�
 
 ### 2.3 Primer acceso — Cambio obligatorio de contraseña
 
-Cuando un HR Admin añade a alguien manualmente al sistema a través de un proceso de invitación, el usuario recibirá un correo con un enlace de acceso. Al hacer clic en ese enlace y entrar a la aplicación, se mostrará un modal obligatorio para establecer una nueva contraseña antes de poder acceder al dashboard.
+> **Nota:** Este flujo solo se presentó en el momento de lanzamiento de la herramienta, cuando se crearon cuentas de forma anticipada para los empleados de Bip que ya hacían parte del equipo. No es un proceso recurrente — los nuevos integrantes simplemente hacen Sign Up por su cuenta.
+
+Cuando un HR Admin añadió a alguien manualmente al sistema a través de un proceso de invitación (como ocurrió en el lanzamiento), el usuario recibió un correo con un enlace de acceso. Al hacer clic en ese enlace y entrar a la aplicación, se mostró un modal obligatorio para establecer una nueva contraseña antes de poder acceder.
 
 Este mismo flujo aplica si un usuario solicita recuperación de contraseña.
 
@@ -83,7 +85,7 @@ En la pantalla de inicio de sesión, hacer clic en **"¿Olvidaste tu contraseña
 
 ### 2.5 Cambio de contraseña (usuarios activos)
 
-Los consultores con sesión activa pueden cambiar su contraseña desde su dashboard personal. Esta opción no está disponible en modo demo.
+Los consultores con sesión activa pueden cambiar su contraseña desde su dashboard personal.
 
 ---
 
@@ -93,7 +95,7 @@ Bench tiene dos roles principales y una variante especial:
 
 ### 3.1 HR Admin (`hr_admin`)
 
-Accede al **Admin Dashboard**, que incluye todas las funcionalidades de gestión:
+Accede al **Vista Admin**, que incluye todas las funcionalidades de gestión:
 - Ver y gestionar todos los consultores
 - Asignar y desasignar personas a proyectos
 - Gestionar tareas de playa y vacaciones del equipo
@@ -103,7 +105,7 @@ Accede al **Admin Dashboard**, que incluye todas las funcionalidades de gestión
 - Dar de baja a consultores
 - Gestionar quién tiene rol de admin
 
-Por defecto, tienen rol de HR Admin todos los consultores con seniority **Manager, Senior Manager, Director, Partner y Senior Partner**. Otros perfiles pueden ser promovidos manualmente (ver sección [Gestión de Admins](#gestión-de-admins)).
+Por defecto, tienen rol de HR Admin todos los consultores con seniority **Manager, Senior Manager, Director, Partner y Senior Partner**. Otros perfiles deben ser promovidos manualmente por un admin existente (ver sección [Gestión de Admins](#gestión-de-admins)). Igualmente, cuando un consultor sea promovido a Manager, se le debe otorgar acceso de admin manualmente desde ese mismo panel.
 
 ### 3.2 Consultor (`consultant`)
 
@@ -118,11 +120,11 @@ El consultor **no puede** ver información de otros consultores (salvo el direct
 
 ### 3.3 Usuario solo administrativo
 
-Es un perfil que solo tiene acceso de HR Admin pero **no tiene hoja de vida de consultor** ni puede ser asignado a proyectos. Se crea marcando la casilla "Solo tengo rol administrativo" durante el sign up. Ejemplo: Martha Martínez (HR).
+Es un perfil que solo tiene acceso de HR Admin pero **no tiene hoja de vida de consultor** ni puede ser asignado a proyectos. Se crea marcando la casilla "Solo tengo rol administrativo" durante el sign up. Ejemplo: Martha Martínez.
 
 ### 3.4 Dar de baja — Consecuencias
 
-Cuando un HR Admin da de baja a un consultor:
+Esta funcionalidad existe para retirar de la herramienta a las personas que ya no trabajan en Bip, de modo que no aparezcan como opciones de staffing ni en los listados activos. Cuando un HR Admin da de baja a un consultor:
 - El consultor desaparece de todas las vistas de la herramienta
 - Su cuenta de acceso a Bench es eliminada (no puede volver a iniciar sesión)
 - Su hoja de vida y datos históricos se conservan en la base de datos pero dejan de ser visibles
@@ -130,7 +132,7 @@ Cuando un HR Admin da de baja a un consultor:
 
 ### 3.5 Gestión de Admins
 
-Los HR Admins pueden promover o revocar el acceso de admin a otros consultores desde el **panel "Gestión de Admins"** en el Tab People (ver sección 5a). Esto permite, por ejemplo, que un consultor ascendido a Manager reciba acceso al Admin Dashboard sin necesidad de contactar a soporte técnico.
+Los HR Admins pueden promover o revocar el acceso de admin a otros consultores desde el **panel "Gestión de Admins"** en el Tab People (ver sección 5a). Esto permite, por ejemplo, que un consultor ascendido a Manager reciba acceso al Vista Admin sin necesidad de contactar a soporte técnico.
 
 ---
 
@@ -158,13 +160,13 @@ Kimble importa tres tipos de proyectos:
 |------|-------------|
 | **Proyectos activos** | Están en ejecución hoy (fecha actual entre inicio y fin) |
 | **Proyectos terminados** | Ya finalizaron — se importan como registro histórico |
-| **Proyectos próximos a cerrar** | Activos pero con fecha de fin cercana — se importan para facilitar el ejercicio de reemplazo/rotación |
+| **Proyectos próximos a cerrar** | Oportunidades cuyo deal está próximo a cerrarse — aún no han iniciado ni tienen equipo staffeado, pero ya es hora de planear quiénes los van a ejecutar |
 
-> ⚠️ **Importante para proyectos próximos a cerrar:** Para poder usar Bench en el ejercicio de staffing de continuación, estos proyectos deben venir en Kimble con **posiciones genéricas** (filas con nombre "Generic Manager", "Generic Consultant", etc.). Si vienen sin esas posiciones, Bench no podrá sugerir reemplazos ni facilitar el ejercicio de planeación. Es responsabilidad del equipo verificar que Kimble incluya este staffing genérico antes de importar.
+> ⚠️ **Importante para proyectos próximos a cerrar:** Para poder usar Bench en el ejercicio de staffing de estos proyectos, deben venir en Kimble con **posiciones genéricas** (filas con nombre "Generic Manager", "Generic Consultant", etc.) que representen los roles que se necesitarán. Si vienen sin esas posiciones, Bench no podrá sugerir candidatos ni facilitar el ejercicio de planeación. Es responsabilidad del equipo verificar que Kimble incluya este staffing genérico antes de importar.
 
 ### 4.3 Cómo hacer la importación
 
-1. Desde el Admin Dashboard, hacer clic en el botón **"Importar Kimble"** (esquina superior derecha)
+1. Desde el Vista Admin, hacer clic en el botón **"Importar Kimble"** (esquina superior derecha)
 2. Arrastrar el archivo Excel exportado de Kimble al área de carga, o hacer clic para buscarlo
 3. Bench procesará el archivo y mostrará una vista previa con:
    - Número de proyectos, asignaciones y consultores detectados
@@ -202,7 +204,7 @@ En ese caso, el proyecto se importa correctamente pero las asignaciones de esos 
 
 ## 5. Vista HR Admin
 
-Al iniciar sesión como HR Admin, se accede al **Admin Dashboard**, que tiene tres tabs principales: **Proyectos**, **People** y **Plan de Staffing**.
+Al iniciar sesión como HR Admin, se accede al **Vista Admin**, que tiene tres tabs principales: **Proyectos**, **People** y **Plan de Staffing**.
 
 ---
 
@@ -281,7 +283,7 @@ Las vacaciones activas aparecen como **badges azules** con ícono de calendario.
 
 #### Aprobación de nuevos consultores
 
-Cuando un nuevo integrante se registra, aparece en la sección **"Nuevos Consultores"** del Admin Dashboard con un badge rojo indicando cuántos están pendientes. El HR Admin puede:
+Cuando un nuevo integrante se registra, aparece en la sección **"Nuevos Consultores"** del Vista Admin con un badge rojo indicando cuántos están pendientes. El HR Admin puede:
 
 1. Ver el nombre, correo, seniority y fecha de registro
 2. Hacer clic en **"Aprobar"** para activar la cuenta
@@ -298,7 +300,7 @@ Al hacer clic en el nombre o la flecha de cualquier consultor, se abre su hoja d
 En la parte superior del Tab People hay un **panel colapsable "Gestión de Admins"**. Al desplegarlo se muestra:
 
 - **Lista de admins actuales** (scrollable): nombre + seniority + botón "Quitar" para revocar acceso
-- **Dropdown para agregar nuevo admin**: busca entre consultores que aún no son admin y al seleccionar uno y hacer clic en "+ Agregar", se le otorga acceso al Admin Dashboard
+- **Dropdown para agregar nuevo admin**: busca entre consultores que aún no son admin y al seleccionar uno y hacer clic en "+ Agregar", se le otorga acceso al Vista Admin
 
 > Cuando se revoca el acceso de admin a alguien, esa persona pasa a tener el rol de consultor y solo verá el Employee Dashboard.
 
