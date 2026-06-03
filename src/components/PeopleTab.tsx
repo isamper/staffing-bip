@@ -387,11 +387,18 @@ export default function PeopleTab({
         pastProjectsInfo,
       }
     })
-    // Sort: fatigue risk first, then vigilancia, then rolling off, then on project, then beach, then available
+    // Sort: seniority (most senior first), then alphabetically by name
     .sort((a, b) => {
-      const rank = (s: typeof a) =>
-        s.isAtFatigueRisk ? 0 : s.fatigueLevel === 'vigilancia' ? 1 : s.isRollingOff ? 2 : s.isOnProject ? 3 : s.activeBeachTasks.length > 0 ? 4 : 5
-      return rank(a) - rank(b)
+      const SENIORITY_RANK: Record<string, number> = {
+        'Senior Partner': 0, 'Partner': 1, 'Director': 2,
+        'Senior Manager': 3, 'Manager': 4,
+        'Senior Associate': 5, 'Associate': 6,
+        'Senior Consultant': 7, 'Consultant': 8, 'Intern': 9,
+      }
+      const rankA = SENIORITY_RANK[a.consultant.seniority] ?? 99
+      const rankB = SENIORITY_RANK[b.consultant.seniority] ?? 99
+      if (rankA !== rankB) return rankA - rankB
+      return a.consultant.name.localeCompare(b.consultant.name, 'es')
     })
 
   const counts = {
