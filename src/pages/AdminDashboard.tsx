@@ -377,26 +377,16 @@ export default function AdminDashboard() {
   // This is intentionally separate from the consultants array so that Kimble imports,
   // Supabase profile fetches, or any other setConsultants call cannot accidentally
   // resurrect a deactivated consultant.
-  const [deactivatedIds, setDeactivatedIds] = useState<Set<string>>(() => loadDeactivatedIds())
+  const [deactivatedIds, setDeactivatedIds] = useState<Set<string>>(new Set())
   const [projects, setProjects] = useState(mockProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>(
-    () => loadFromStorage<ProjectAssignment>(ASSIGNMENTS_STORAGE_KEY, mockAssignments),
-  )
-  const [vacations, setVacations] = useState<VacationRequest[]>(() => {
-    const yearStart = `${new Date().getFullYear()}-01-01`
-    return loadFromStorage<VacationRequest>(VACATIONS_STORAGE_KEY, mockVacationRequests)
-      .filter((v) => v.end_date >= yearStart)
-  })
+  const [assignments, setAssignments] = useState<ProjectAssignment[]>(mockAssignments)
+  const [vacations, setVacations] = useState<VacationRequest[]>([])
   const [search, setSearch] = useState('')
   const [replacementsFor, setReplacementsFor] = useState<string | null>(null)
   const [kimbleModalOpen, setKimbleModalOpen] = useState(false)
   const [lastImport, setLastImport] = useState<string | null>(null)
-  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>(() => {
-    const yearStart = `${new Date().getFullYear()}-01-01`
-    return loadFromStorage<BeachAssignment>(BEACH_STORAGE_KEY, [])
-      .filter((b) => b.end_date >= yearStart)
-  })
+  const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
@@ -419,45 +409,120 @@ export default function AdminDashboard() {
   const [pendingLoading, setPendingLoading] = useState(false)
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
-  // On mount: restore projects + consultant metadata from last Kimble import.
-  // If bench_assignments_v1 already exists (user has persisted state), skip
-  // re-generating assignments so manual changes survive.  If it doesn't exist
-  // yet (first load after clearing storage), generate assignments from Kimble
-  // so the employee view immediately shows correct data.
+  // On mount: restore state from Supabase (real mode) or localStorage (demo mode).
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
-      if (saved) {
-        const hasPersistedAssignments = localStorage.getItem(ASSIGNMENTS_STORAGE_KEY) !== null
-        handleKimbleImport(JSON.parse(saved), { skipAssignments: hasPersistedAssignments })
-      }
-    } catch {
-      localStorage.removeItem(KIMBLE_STORAGE_KEY)
-    }
-    // 2. Deactivations
-    const deactivated = loadDeactivatedIds()
-    if (deactivated.size > 0) {
-      setConsultants((prev) =>
-        prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
-      )
-    }
-    // 3. Saved CV edits (bio, experience, skills, etc. written by each consultant)
-    try {
-      const savedRaw = localStorage.getItem(PROFILES_STORAGE_KEY)
-      if (savedRaw) {
-        const savedEdits = JSON.parse(savedRaw) as Record<string, Partial<Profile>>
-        const ids = Object.keys(savedEdits)
-        if (ids.length > 0) {
-          setConsultants((prev) =>
-            prev.map((c) => savedEdits[c.id] ? { ...c, ...savedEdits[c.id] } : c),
-          )
+    if (isDemoMode || !supabase) {
+      // ── Demo / localStorage branch ───────────────────────────────────────────
+      try {
+        const saved = localStorage.getItem(KIMBLE_STORAGE_KEY)
+        if (saved) {
+          const hasPersistedAssignments = localStorage.getItem(ASSIGNMENTS_STORAGE_KEY) !== null
+          handleKimbleImport(JSON.parse(saved), { skipAssignments: hasPersistedAssignments })
         }
+      } catch {
+        localStorage.removeItem(KIMBLE_STORAGE_KEY)
       }
-    } catch { /* ignore */ }
 
-    // 4. Option B: fetch Supabase profiles and merge new hires (people who signed up
-    //    directly and whose email isn't covered by mockConsultants or EMAIL_OVERRIDES).
-    if (!isDemoMode && supabase) {
+      // Assignments (if not restored by handleKimbleImport above)
+      const savedAssignments = loadFromStorage<ProjectAssignment>(ASSIGNMENTS_STORAGE_KEY, mockAssignments)
+      setAssignments(savedAssignments)
+
+      // Beach assignments
+      const yearStart = `${new Date().getFullYear()}-01-01`
+      setBeachAssignments(
+        loadFromStorage<BeachAssignment>(BEACH_STORAGE_KEY, []).filter((b) => b.end_date >= yearStart),
+      )
+
+      // Vacations
+      setVacations(
+        loadFromStorage<VacationRequest>(VACATIONS_STORAGE_KEY, mockVacationRequests).filter(
+          (v) => v.end_date >= yearStart,
+        ),
+      )
+
+      // Deactivations
+      const deactivated = loadDeactivatedIds()
+      setDeactivatedIds(deactivated)
+      if (deactivated.size > 0) {
+        setConsultants((prev) =>
+          prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
+        )
+      }
+
+      // Saved CV edits
+      try {
+        const savedRaw = localStorage.getItem(PROFILES_STORAGE_KEY)
+        if (savedRaw) {
+          const savedEdits = JSON.parse(savedRaw) as Record<string, Partial<Profile>>
+          const ids = Object.keys(savedEdits)
+          if (ids.length > 0) {
+            setConsultants((prev) =>
+              prev.map((c) => savedEdits[c.id] ? { ...c, ...savedEdits[c.id] } : c),
+            )
+          }
+        }
+      } catch { /* ignore */ }
+    } else {
+      // ── Supabase branch ──────────────────────────────────────────────────────
+
+      // 1. Kimble cache
+      supabase
+        .from('kimble_cache')
+        .select('*')
+        .limit(1)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const row = data[0]
+            handleKimbleImport(row.data as KimbleImportResult, { skipAssignments: true })
+            setLastImport(row.file_name ?? null)
+          }
+        })
+
+      // 2. Project assignments
+      supabase
+        .from('project_assignments')
+        .select('*')
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setAssignments(data as ProjectAssignment[])
+          }
+          // else keep the mockAssignments default
+        })
+
+      // 3. Beach assignments (current year only)
+      const yearStart = `${new Date().getFullYear()}-01-01`
+      supabase
+        .from('beach_assignments')
+        .select('*')
+        .gte('end_date', yearStart)
+        .then(({ data }) => {
+          if (data) setBeachAssignments(data as BeachAssignment[])
+        })
+
+      // 4. Vacation requests (current year only)
+      supabase
+        .from('vacation_requests')
+        .select('*')
+        .gte('end_date', yearStart)
+        .then(({ data }) => {
+          if (data) setVacations(data as VacationRequest[])
+        })
+
+      // 5. Deactivated consultants
+      supabase
+        .from('deactivated_consultants')
+        .select('consultant_id')
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const deactivated = new Set(data.map((r) => r.consultant_id as string))
+            setDeactivatedIds(deactivated)
+            setConsultants((prev) =>
+              prev.map((c) => deactivated.has(c.id) ? { ...c, is_active: false } : c),
+            )
+          }
+        })
+
+      // 6. New hire profiles from Supabase profiles table
       const knownEmails = new Set([
         ...mockConsultants.map((c) => nameToEmail(c.name)),
         ...Object.keys(EMAIL_OVERRIDES),
@@ -471,14 +536,10 @@ export default function AdminDashboard() {
             (p) => p.email && !knownEmails.has(p.email) && !p.is_admin_only,
           ) as Profile[]
           if (newHires.length > 0) {
-            // Re-load deactivated IDs here so the async fetch respects deactivations
-            const deactivated = loadDeactivatedIds()
             setConsultants((prev) => {
-              // Avoid duplicates if called multiple times
               const existingIds = new Set(prev.map((c) => c.id))
-              const toAdd = newHires
-                .filter((h) => !existingIds.has(h.id))
-                .map((h) => deactivated.has(h.id) ? { ...h, is_active: false } : h)
+              // deactivatedIds state may not be updated yet — read from Supabase data again
+              const toAdd = newHires.filter((h) => !existingIds.has(h.id))
               return [...prev, ...toAdd]
             })
           }
@@ -636,7 +697,20 @@ export default function AdminDashboard() {
           return true
         })
         const updated = [...kept, ...newAssignments]
-        saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+        if (!isDemoMode && supabase) {
+          supabase
+            .from('project_assignments')
+            .delete()
+            .neq('id', '')
+            .then(() => {
+              supabase!
+                .from('project_assignments')
+                .insert(updated)
+                .then(() => {})
+            })
+        } else {
+          saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+        }
         return updated
       })
     }
@@ -676,10 +750,17 @@ export default function AdminDashboard() {
     setLastImport(result.fileName)
 
     // Persist the import result so it survives page reloads
-    try {
-      localStorage.setItem(KIMBLE_STORAGE_KEY, JSON.stringify(result))
-    } catch {
-      // storage full — not critical, just skip
+    if (!isDemoMode && supabase) {
+      supabase
+        .from('kimble_cache')
+        .upsert({ id: 1, data: result, file_name: result.fileName, imported_at: result.importedAt })
+        .then(() => {})
+    } else {
+      try {
+        localStorage.setItem(KIMBLE_STORAGE_KEY, JSON.stringify(result))
+      } catch {
+        // storage full — not critical, just skip
+      }
     }
   }
 
@@ -750,34 +831,44 @@ export default function AdminDashboard() {
 
   function handleAssign(consultantId: string, projectId: string) {
     const project = projects.find((p) => p.id === projectId)
+    const newAssignment: ProjectAssignment = {
+      id: `a${Date.now()}`,
+      project_id: projectId,
+      consultant_id: consultantId,
+      dedication_percentage: addDedication,
+      start_date: addStartDate || null,
+      end_date: addEndDate || (project?.end_date ?? null),
+      assigned_at: new Date().toISOString(),
+    }
     setAssignments((prev) => {
-      const updated = [...prev, {
-        id: `a${Date.now()}`,
-        project_id: projectId,
-        consultant_id: consultantId,
-        dedication_percentage: addDedication,
-        start_date: addStartDate || null,
-        end_date: addEndDate || (project?.end_date ?? null),
-        assigned_at: new Date().toISOString(),
-      }]
-      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      const updated = [...prev, newAssignment]
+      if (!isDemoMode && supabase) {
+        supabase.from('project_assignments').insert(newAssignment).then(() => {})
+      } else {
+        saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
 
   function handleManualAdd(consultantId: string) {
     if (!selectedProject) return
+    const newAssignment: ProjectAssignment = {
+      id: `manual-${Date.now()}`,
+      project_id: selectedProject.id,
+      consultant_id: consultantId,
+      dedication_percentage: addDedication,
+      start_date: addStartDate || null,
+      end_date: addEndDate || selectedProject.end_date,
+      assigned_at: new Date().toISOString(),
+    }
     setAssignments((prev) => {
-      const updated = [...prev, {
-        id: `manual-${Date.now()}`,
-        project_id: selectedProject.id,
-        consultant_id: consultantId,
-        dedication_percentage: addDedication,
-        start_date: addStartDate || null,
-        end_date: addEndDate || selectedProject.end_date,
-        assigned_at: new Date().toISOString(),
-      }]
-      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      const updated = [...prev, newAssignment]
+      if (!isDemoMode && supabase) {
+        supabase.from('project_assignments').insert(newAssignment).then(() => {})
+      } else {
+        saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      }
       return updated
     })
     setShowAddModal(false)
@@ -788,9 +879,14 @@ export default function AdminDashboard() {
   }
 
   function handleUnassign(assignmentId: string) {
+    if (!isDemoMode && supabase) {
+      supabase.from('project_assignments').delete().eq('id', assignmentId).then(() => {})
+    }
     setAssignments((prev) => {
       const updated = prev.filter((a) => a.id !== assignmentId)
-      saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      if (isDemoMode || !supabase) {
+        saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
@@ -807,15 +903,24 @@ export default function AdminDashboard() {
     }
     setBeachAssignments((prev) => {
       const updated = [...prev, newEntry]
-      saveToStorage(BEACH_STORAGE_KEY, updated)
+      if (!isDemoMode && supabase) {
+        supabase.from('beach_assignments').insert(newEntry).then(() => {})
+      } else {
+        saveToStorage(BEACH_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
 
   function handleRemoveBeach(id: string) {
+    if (!isDemoMode && supabase) {
+      supabase.from('beach_assignments').delete().eq('id', id).then(() => {})
+    }
     setBeachAssignments((prev) => {
       const updated = prev.filter((b) => b.id !== id)
-      saveToStorage(BEACH_STORAGE_KEY, updated)
+      if (isDemoMode || !supabase) {
+        saveToStorage(BEACH_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
@@ -831,15 +936,24 @@ export default function AdminDashboard() {
     }
     setVacations((prev) => {
       const updated = [...prev, v]
-      saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      if (!isDemoMode && supabase) {
+        supabase.from('vacation_requests').insert(v).then(() => {})
+      } else {
+        saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
 
   function handleRemoveVacation(id: string) {
+    if (!isDemoMode && supabase) {
+      supabase.from('vacation_requests').delete().eq('id', id).then(() => {})
+    }
     setVacations((prev) => {
       const updated = prev.filter((v) => v.id !== id)
-      saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      if (isDemoMode || !supabase) {
+        saveToStorage(VACATIONS_STORAGE_KEY, updated)
+      }
       return updated
     })
   }
@@ -851,7 +965,14 @@ export default function AdminDashboard() {
     const newDeactivated = new Set(deactivatedIds)
     newDeactivated.add(consultantId)
     setDeactivatedIds(newDeactivated)
-    saveDeactivatedIds(newDeactivated)
+    if (!isDemoMode && supabase) {
+      supabase
+        .from('deactivated_consultants')
+        .insert({ consultant_id: consultantId })
+        .then(() => {})
+    } else {
+      saveDeactivatedIds(newDeactivated)
+    }
     setConsultants((prev) =>
       prev.map((c) => c.id === consultantId ? { ...c, is_active: false } : c),
     )
@@ -1483,7 +1604,11 @@ export default function AdminDashboard() {
             onApply={(newAssignments) =>
               setAssignments((prev) => {
                 const updated = [...prev, ...newAssignments]
-                saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+                if (!isDemoMode && supabase) {
+                  supabase.from('project_assignments').insert(newAssignments).then(() => {})
+                } else {
+                  saveToStorage(ASSIGNMENTS_STORAGE_KEY, updated)
+                }
                 return updated
               })
             }
