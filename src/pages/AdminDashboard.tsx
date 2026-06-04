@@ -44,11 +44,12 @@ function getTotalDedication(
   consultantId: string,
   assignments: ProjectAssignment[],
   today: Date,
+  projects: Project[],
 ): number {
   return assignments
     .filter((a) => {
       if (a.consultant_id !== consultantId) return false
-      const project = mockProjects.find((p) => p.id === a.project_id)
+      const project = projects.find((p) => p.id === a.project_id)
       return project ? new Date(project.end_date) >= today : false
     })
     .reduce((sum, a) => sum + a.dedication_percentage, 0)
@@ -1491,7 +1492,7 @@ export default function AdminDashboard() {
                                 <UserPlus size={13} /> Agregar persona
                               </Button>
                               {assignedConsultants.some(({ consultant }) => {
-                                const total = getTotalDedication(consultant.id, assignments, today)
+                                const total = getTotalDedication(consultant.id, assignments, today, projects)
                                 const beach = getBeachDedication(consultant.id, beachAssignments, today)
                                 const { level } = computeFatigue(consultant, total, beach, vacations)
                                 return level !== 'normal'
@@ -1505,7 +1506,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="space-y-2">
                             {assignedConsultants.map(({ consultant, assignment }) => {
-                              const total = getTotalDedication(consultant.id, assignments, today)
+                              const total = getTotalDedication(consultant.id, assignments, today, projects)
                               const max = MAX_CARGABILITY[consultant.seniority] ?? 100
                               return (
                                 <AssignedMemberRow
