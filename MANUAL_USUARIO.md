@@ -254,7 +254,7 @@ Cada fila del listado muestra:
   - 🟡 **Rolling off** — Asignación termina en ≤30 días
   - 🟢 **Available now** — Sin asignación activa
   - ⬛ **On project** — Con asignación activa
-- **Barra de dedicación** (si está en proyecto): muestra el % actual vs. el máximo permitido según seniority
+- **Barra de dedicación** (si está en proyecto): muestra el % de dedicación actual vs. el máximo permitido según seniority. Este porcentaje suma todas las asignaciones activas del consultor — tanto las provenientes de Kimble como las agregadas manualmente desde el Tab Proyectos
 - **Cargabilidad 2026** (si fue importada de Kimble): aparece en rojo si supera el 80%
 - **Fecha de disponibilidad** o "Available now"
 - **Enlace "Dar de baja"** (ver sección 3.4)
@@ -328,7 +328,9 @@ Este tab muestra todos los proyectos organizados en tres grupos:
 Al seleccionar un proyecto en el panel izquierdo, el panel derecho muestra:
 
 - Nombre, cliente, industria, descripción, fechas y estado
-- **Equipo asignado**: lista de consultores con su % de dedicación, fechas y badges de fatiga
+- **Equipo asignado**: lista de consultores con su **% de dedicación a este proyecto** (no el total de cargabilidad), fechas de asignación y badges de fatiga
+  - El porcentaje mostrado refleja únicamente la dedicación del consultor a este proyecto en particular. Si el consultor tiene otras asignaciones activas en otros proyectos, eso no se suma aquí
+  - Los badges de fatiga (Riesgo / En vigilancia) sí se calculan con la cargabilidad total del consultor
   - Si algún consultor tiene riesgo de fatiga o está en vigilancia, aparece el badge correspondiente
   - Si hay solapamiento con vacaciones, se muestra una alerta con las fechas
 - **Posiciones abiertas** (solo para proyectos Needs Staffing): roles pendientes de cubrir con sugerencias de match
