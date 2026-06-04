@@ -374,6 +374,7 @@ function saveToStorage<T>(key: string, data: T[]) {
 
 export default function AdminDashboard() {
   const [consultants, setConsultants] = useState<Profile[]>(mockConsultants)
+  const [cvProfiles, setCvProfiles] = useState<Record<string, Partial<Profile>>>({})
   // Deactivated IDs are tracked in their own state, seeded from localStorage on mount.
   // This is intentionally separate from the consultants array so that Kimble imports,
   // Supabase profile fetches, or any other setConsultants call cannot accidentally
@@ -525,7 +526,19 @@ export default function AdminDashboard() {
           }
         })
 
-      // 6. New hire profiles from Supabase profiles table
+      // 6. CV data from consultant_profiles
+      supabase
+        .from('consultant_profiles')
+        .select('consultant_id, cv_data')
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, Partial<Profile>> = {}
+            data.forEach((row) => { map[row.consultant_id] = row.cv_data as Partial<Profile> })
+            setCvProfiles(map)
+          }
+        })
+
+      // 7. New hire profiles from Supabase profiles table
       const knownEmails = new Set([
         ...mockConsultants.map((c) => nameToEmail(c.name)),
         ...Object.keys(EMAIL_OVERRIDES),
@@ -570,6 +583,7 @@ export default function AdminDashboard() {
       refreshFnRef.current?.beach()
       refreshFnRef.current?.vacations()
       refreshFnRef.current?.deactivated()
+      refreshFnRef.current?.cvProfiles()
     }
 
     const id = setInterval(poll, 10_000)
@@ -585,6 +599,7 @@ export default function AdminDashboard() {
     beach: () => void
     vacations: () => void
     deactivated: () => void
+    cvProfiles: () => void
   } | null>(null)
 
   // Update ref on every render — no stale-closure problem in Realtime callbacks.
@@ -642,6 +657,16 @@ export default function AdminDashboard() {
         }
       })
     },
+    cvProfiles: () => {
+      if (!supabase) return
+      supabase.from('consultant_profiles').select('consultant_id, cv_data').then(({ data }) => {
+        if (data) {
+          const map: Record<string, Partial<Profile>> = {}
+          data.forEach((row) => { map[row.consultant_id] = row.cv_data as Partial<Profile> })
+          setCvProfiles(map)
+        }
+      })
+    },
   }
 
   useEffect(() => {
@@ -659,6 +684,8 @@ export default function AdminDashboard() {
         () => refreshFnRef.current?.vacations())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'deactivated_consultants' },
         () => refreshFnRef.current?.deactivated())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_profiles' },
+        () => refreshFnRef.current?.cvProfiles())
       .subscribe()
 
     return () => { supabase!.removeChannel(channel) }
@@ -1699,7 +1726,9 @@ export default function AdminDashboard() {
         {/* People tab */}
         <TabsContent value="people">
           <PeopleTab
-            consultants={consultants.filter((c) => !deactivatedIds.has(c.id))}
+            consultants={consultants
+              .filter((c) => !deactivatedIds.has(c.id))
+              .map((c) => cvProfiles[c.id] ? { ...c, ...cvProfiles[c.id] } : c)}
             projects={projects}
             assignments={assignments}
             beachAssignments={beachAssignments}

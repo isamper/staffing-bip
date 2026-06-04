@@ -283,6 +283,7 @@ export default function EmployeeDashboard() {
   // ── Supabase live data (overrides localStorage when connected) ────────────
   const [supaAssignments, setSupaAssignments] = useState<ProjectAssignment[]>([])
   const [supaProjects, setSupaProjects] = useState<Project[]>([])
+  const [cvProfiles, setCvProfiles] = useState<Record<string, Partial<Profile>>>({})
 
   useEffect(() => {
     if (isDemoMode || !supabase) return
@@ -300,14 +301,25 @@ export default function EmployeeDashboard() {
         }
       })
     }
+    const fetchCvProfiles = () => {
+      supabase!.from('consultant_profiles').select('consultant_id, cv_data').then(({ data }) => {
+        if (data) {
+          const map: Record<string, Partial<Profile>> = {}
+          data.forEach((row) => { map[row.consultant_id] = row.cv_data as Partial<Profile> })
+          setCvProfiles(map)
+        }
+      })
+    }
 
     fetchAssignments()
     fetchProjects()
+    fetchCvProfiles()
 
     const channel = supabase
       .channel('employee-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_assignments' }, fetchAssignments)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' }, fetchProjects)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_profiles' }, fetchCvProfiles)
       .subscribe()
 
     return () => { supabase!.removeChannel(channel) }
@@ -319,7 +331,10 @@ export default function EmployeeDashboard() {
   // ── Real data: prefer Supabase when connected, fall back to localStorage ──
   const allProjects    = (!isDemoMode && supaProjects.length > 0) ? supaProjects : loadProjects()
   const allAssignments = (!isDemoMode && supaAssignments.length > 0) ? supaAssignments : loadAssignments()
-  const allConsultants = loadConsultants()
+  // Merge Supabase CV data on top of base consultants so Equipo tab shows live CV edits
+  const allConsultants = loadConsultants().map((c) =>
+    cvProfiles[c.id] ? { ...c, ...cvProfiles[c.id] } : c,
+  )
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
@@ -404,18 +419,27 @@ export default function EmployeeDashboard() {
     })
   }
 
-  /** Persist current edits to localStorage so all views update. */
+  /** Persist current edits to Supabase (primary) and localStorage (fallback). */
   function saveCV() {
     // Read from ref — guaranteed to be the latest value even if a blur-triggered
     // setMyProfile hasn't been flushed by React yet when this click handler runs.
     const toSave = latestProfile.current
     if (!toSave) return
+    const cvData = pick(toSave, EDITABLE_PROFILE_KEYS) as Partial<Profile>
+    // Always write to localStorage as fallback
     try {
       const raw = localStorage.getItem(PROFILES_STORAGE_KEY) ?? '{}'
       const saved = JSON.parse(raw) as Record<string, Partial<Profile>>
-      saved[toSave.id] = pick(toSave, EDITABLE_PROFILE_KEYS) as Partial<Profile>
+      saved[toSave.id] = cvData
       localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(saved))
     } catch { /* storage full */ }
+    // Also upsert to Supabase so all users see the update in real time
+    if (!isDemoMode && supabase) {
+      supabase
+        .from('consultant_profiles')
+        .upsert({ consultant_id: toSave.id, cv_data: cvData, updated_at: new Date().toISOString() })
+        .then(() => {})
+    }
     setCvDirty(false)
     setCvSaved(true)
     setTimeout(() => setCvSaved(false), 2500)
