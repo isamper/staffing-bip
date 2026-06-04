@@ -260,9 +260,6 @@ function AssignedMemberRow({
             </span>
             <span className="text-xs text-slate-400">en proyecto</span>
           </div>
-          {totalDedication !== assignment.dedication_percentage && (
-            <p className="text-xs text-slate-400">{totalDedication}% total</p>
-          )}
           <p className="mt-0.5 text-xs text-slate-400">
             {assignment.start_date ? `${formatDate(assignment.start_date)} – ` : ''}{formatDate(assignment.end_date ?? project.end_date)}
           </p>
