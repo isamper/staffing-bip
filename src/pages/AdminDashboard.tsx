@@ -475,7 +475,8 @@ export default function AdminDashboard() {
             const row = data[0]
             lastKimbleTs.current = row.imported_at
             handleKimbleImport(row.data as KimbleImportResult, { skipAssignments: true })
-            if (row.file_name) setLastImport(row.file_name)
+            const fn = row.file_name || (row.data as KimbleImportResult)?.fileName
+            if (fn) setLastImport(fn)
           }
         })
 
@@ -593,9 +594,14 @@ export default function AdminDashboard() {
       // Re-apply Kimble enrichments (projects + consultant dedications/areas)
       supabase.from('kimble_cache').select('*').limit(1).then(({ data }) => {
         if (data && data.length > 0) {
+          // Staleness check: skip if this fetch returned data older than what we already have.
+          // This prevents a slow in-flight fetch (started before an import) from overwriting
+          // the correct newer file name with stale data.
+          const fetchedMs = new Date(data[0].imported_at).getTime()
+          const currentMs = lastKimbleTs.current ? new Date(lastKimbleTs.current).getTime() : 0
+          if (fetchedMs < currentMs) return
+          lastKimbleTs.current = data[0].imported_at
           handleKimbleImport(data[0].data as KimbleImportResult, { skipAssignments: true })
-          // handleKimbleImport already sets lastImport from result.fileName (the stored JSON).
-          // Patch with the DB column as fallback in case the JSON is missing it.
           const fn = data[0].file_name || (data[0].data as KimbleImportResult)?.fileName
           if (fn) setLastImport(fn)
         }
@@ -857,9 +863,9 @@ export default function AdminDashboard() {
       }),
     )
 
-    // Always update the displayed file name — result.fileName is always authoritative
-    // (it's file.name on a direct import, and data.fileName from Supabase on refreshes)
-    if (result.fileName) setLastImport(result.fileName)
+    // Only set the file name on a direct import — refreshes handle it separately
+    // with a staleness check to avoid overwriting newer data with older fetches.
+    if (!opts.skipAssignments && result.fileName) setLastImport(result.fileName)
 
     // Persist the import result so it survives page reloads
     if (!isDemoMode && supabase) {
