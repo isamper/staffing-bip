@@ -867,8 +867,10 @@ export default function AdminDashboard() {
     // with a staleness check to avoid overwriting newer data with older fetches.
     if (!opts.skipAssignments && result.fileName) setLastImport(result.fileName)
 
-    // Persist the import result so it survives page reloads
-    if (!isDemoMode && supabase) {
+    // Persist the import result — only on direct imports, NOT on DB refreshes.
+    // Refreshes (skipAssignments=true) already have DB data; re-upserting would
+    // overwrite new data with stale data and create an infinite Realtime loop.
+    if (!isDemoMode && supabase && !opts.skipAssignments) {
       supabase
         .from('kimble_cache')
         .upsert({ id: 1, data: result, file_name: result.fileName, imported_at: result.importedAt })
