@@ -594,7 +594,10 @@ export default function AdminDashboard() {
       supabase.from('kimble_cache').select('*').limit(1).then(({ data }) => {
         if (data && data.length > 0) {
           handleKimbleImport(data[0].data as KimbleImportResult, { skipAssignments: true })
-          if (data[0].file_name) setLastImport(data[0].file_name)
+          // handleKimbleImport already sets lastImport from result.fileName (the stored JSON).
+          // Patch with the DB column as fallback in case the JSON is missing it.
+          const fn = data[0].file_name || (data[0].data as KimbleImportResult)?.fileName
+          if (fn) setLastImport(fn)
         }
       })
       // Also refresh assignments since a Kimble import replaces them
@@ -854,8 +857,9 @@ export default function AdminDashboard() {
       }),
     )
 
-    // Only update the displayed file name on a direct import (not on DB refreshes)
-    if (!opts.skipAssignments) setLastImport(result.fileName)
+    // Always update the displayed file name — result.fileName is always authoritative
+    // (it's file.name on a direct import, and data.fileName from Supabase on refreshes)
+    if (result.fileName) setLastImport(result.fileName)
 
     // Persist the import result so it survives page reloads
     if (!isDemoMode && supabase) {
