@@ -276,7 +276,15 @@ export default function PeopleTab({
         return proj ? new Date(proj.end_date) >= today : false
       })
 
-      const projectDedication = activeAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
+      // For the dedication total, include manual assignments even if their project
+      // isn't found in the projects list — same logic as beachDedication (date-only check).
+      const activeDedicationAssignments = assignments.filter((a) => {
+        if (a.consultant_id !== c.id) return false
+        if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
+        if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
+        return true
+      })
+      const projectDedication = activeDedicationAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
 
       // Active beach tasks — calculated early so we can include beach dedication in totalDedication
       const activeBeachTasksEarly = beachAssignments.filter(
