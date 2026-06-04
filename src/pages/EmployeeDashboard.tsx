@@ -194,6 +194,23 @@ function applysavedEdits(base: Profile): Profile {
   return mine ? { ...base, ...mine } : base
 }
 
+/** Build a Project[] from a KimbleImportResult (same logic as loadProjects but from any source). */
+function buildProjectsFromKimble(result: KimbleImportResult): Project[] {
+  const mockById = new Map<string, Project>(mockProjects.map((p) => [p.id, p]))
+  const merged = new Map<string, Project>(mockProjects.map((p) => [p.id, { ...p }]))
+  for (const kp of result.projects) {
+    const nc = numericCode(kp.id)
+    const existingId = numericToMockId.get(nc)
+    if (existingId) {
+      const existing = mockById.get(existingId)!
+      merged.set(existingId, { ...existing, name: kp.name || existing.name, client: kp.client || existing.client, end_date: kp.end_date, status: kp.status, team_size: kp.team_size })
+    } else {
+      merged.set(kp.id, kp)
+    }
+  }
+  return [...merged.values()]
+}
+
 export default function EmployeeDashboard() {
   const { profile: authProfile, signOut } = useAuth()
 
@@ -263,25 +280,57 @@ export default function EmployeeDashboard() {
   const [teamSearch, setTeamSearch] = useState('')
   const [selectedColleague, setSelectedColleague] = useState<Profile | null>(null)
 
+  // ── Supabase live data (overrides localStorage when connected) ────────────
+  const [supaAssignments, setSupaAssignments] = useState<ProjectAssignment[]>([])
+  const [supaProjects, setSupaProjects] = useState<Project[]>([])
+
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+
+    const fetchAssignments = () => {
+      supabase!.from('project_assignments').select('*').then(({ data }) => {
+        if (data) setSupaAssignments(data as ProjectAssignment[])
+      })
+    }
+    const fetchProjects = () => {
+      supabase!.from('kimble_cache').select('data').limit(1).then(({ data }) => {
+        if (data && data.length > 0) {
+          const result = data[0].data as KimbleImportResult
+          setSupaProjects(buildProjectsFromKimble(result))
+        }
+      })
+    }
+
+    fetchAssignments()
+    fetchProjects()
+
+    const channel = supabase
+      .channel('employee-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_assignments' }, fetchAssignments)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kimble_cache' }, fetchProjects)
+      .subscribe()
+
+    return () => { supabase!.removeChannel(channel) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const profile = myProfile
   if (!profile) return null
 
-  // ── Real data from localStorage (same source as admin dashboard) ──
-  const allProjects   = loadProjects()
-  const allAssignments = loadAssignments()
+  // ── Real data: prefer Supabase when connected, fall back to localStorage ──
+  const allProjects    = (!isDemoMode && supaProjects.length > 0) ? supaProjects : loadProjects()
+  const allAssignments = (!isDemoMode && supaAssignments.length > 0) ? supaAssignments : loadAssignments()
   const allConsultants = loadConsultants()
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
   const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000)
 
-  // The profile cached in bench_demo_user may have a stale ID if the user
-  // logged in before profiles were updated. Always resolve the canonical
-  // consultant ID by name-matching against mockConsultants.
+  // In Supabase mode, assignments use the user's real Supabase UUID as consultant_id.
+  // In demo/localStorage mode, resolve by name-matching against mockConsultants.
   const knownConsultant = mockConsultants.find(
     (c) => normName(c.name) === normName(profile.name),
   )
-  const consultantId = knownConsultant?.id ?? profile.id
+  const consultantId = (!isDemoMode && supabase) ? profile.id : (knownConsultant?.id ?? profile.id)
 
   // All assignments for this consultant
   const myAllAssignments = allAssignments.filter((a) => a.consultant_id === consultantId)
@@ -342,8 +391,9 @@ export default function EmployeeDashboard() {
   })()
 
   const myLikes = likes.filter((l) => l.consultant_id === profile.id).map((l) => l.project_id)
+  // Aligned with Admin "Needs Staffing": Open or Partially Staffed with a future end date
   const openProjects = allProjects.filter(
-    (p) => p.status === 'Open' || p.status === 'Partially Staffed',
+    (p) => (p.status === 'Open' || p.status === 'Partially Staffed') && p.end_date >= todayStr,
   )
 
   function toggleLike(projectId: string) {
