@@ -31,6 +31,7 @@ interface ConsultantStats {
   fatigueLevel: 'normal' | 'vigilancia' | 'riesgo'
   isAtFatigueRisk: boolean  // fatigueLevel === 'riesgo'
   isAvailable: boolean
+  hasSpareCapacity: boolean // dedication below max, but not fully free — still surfaces in Available Now
   isRollingOff: boolean
   isOnProject: boolean
   isOnBeach: boolean
@@ -385,6 +386,10 @@ export default function PeopleTab({
         fatigueLevel,
         isAtFatigueRisk: fatigueLevel === 'riesgo',
         isAvailable: totalDedication === 0 && isAvailableNow(c.available_from),
+        // Partially-staffed consultants (dedication below their max capacity) still
+        // have room for additional work, so they surface in the Available Now tab
+        // even though their badge continues to reflect their actual project status.
+        hasSpareCapacity: totalDedication > 0 && totalDedication < maxDedication,
         isRollingOff,
         isOnProject: projectDedication > 0,
         isOnBeach: projectDedication === 0,
@@ -411,7 +416,7 @@ export default function PeopleTab({
 
   const counts = {
     all: stats.length,
-    available: stats.filter((s) => s.isAvailable).length,
+    available: stats.filter((s) => s.isAvailable || s.hasSpareCapacity).length,
     on_project: stats.filter((s) => s.isOnProject).length,
     rolling_off: stats.filter((s) => s.isRollingOff).length,
     over_dedicated: stats.filter((s) => s.isAtFatigueRisk).length,
@@ -419,7 +424,7 @@ export default function PeopleTab({
 
   const filtered = stats
     .filter((s) => {
-      if (filter === 'available') return s.isAvailable
+      if (filter === 'available') return s.isAvailable || s.hasSpareCapacity
       if (filter === 'on_project') return s.isOnProject
       if (filter === 'rolling_off') return s.isRollingOff
       if (filter === 'over_dedicated') return s.isAtFatigueRisk
