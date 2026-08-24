@@ -232,10 +232,22 @@ En la parte superior hay **5 chips de filtro** que permiten ver subconjuntos del
 | Chip | Color | Descripción |
 |------|-------|-------------|
 | **All** | Gris | Todos los consultores activos |
-| **Available Now** | Verde | Sin asignación activa y con fecha de disponibilidad ya pasada |
+| **Available Now** | Verde | Con al menos 10% de disponibilidad (dedicación total ≤ 90%) y con fecha de disponibilidad ya pasada — ver sub-filtros abajo |
 | **On Project** | Azul | Con al menos una asignación activa en proyecto cliente |
 | **Rolling Off (30d)** | Ámbar | Su asignación termina en los próximos 30 días |
 | **Riesgo de fatiga** | Rojo | Índice de Fatiga superior a 0.90 (ver Glosario) |
+
+#### Sub-filtros de disponibilidad
+
+Al seleccionar el chip **Available Now**, aparecen tres sub-filtros adicionales debajo que permiten precisar cuánta capacidad libre tiene cada consultor, en vez de tratar la disponibilidad como un simple sí/no:
+
+| Sub-filtro | Color | % de disponibilidad | Dedicación total equivalente |
+|------------|-------|----------------------|-------------------------------|
+| **Fully Available (81–100%)** | Verde | 81% – 100% | 0% – 19% |
+| **Mostly Available (51–80%)** | Azul | 51% – 80% | 20% – 49% |
+| **Partially Available (10–50%)** | Ámbar | 10% – 50% | 50% – 90% |
+
+Cada sub-filtro muestra su propio contador y se puede hacer clic para ver solo ese rango; volver a hacer clic lo deselecciona y regresa a ver los tres rangos combinados. Cambiar a cualquier otro chip principal (All, On Project, etc.) reinicia el sub-filtro. Ver la fórmula completa en [Glosario — Disponible (Available Now)](#disponible-available-now).
 
 La barra de búsqueda filtra por nombre, seniority, habilidades y área de práctica.
 
@@ -252,7 +264,7 @@ Cada fila del listado muestra:
   - 🔴 **Riesgo de fatiga** — Índice > 0.90
   - 🟡 **En vigilancia** — Índice entre 0.80 y 0.90
   - 🟡 **Rolling off** — Asignación termina en ≤30 días
-  - 🟢 **Available now** — Sin asignación activa
+  - 🟢 **Available now** — Al menos 10% de disponibilidad (ver sub-filtros de disponibilidad en la sección anterior)
   - ⬛ **On project** — Con asignación activa
 - **Barra de dedicación** (si está en proyecto): muestra el % de dedicación actual vs. el máximo permitido según seniority. Este porcentaje suma todas las asignaciones activas del consultor — tanto las provenientes de Kimble como las agregadas manualmente desde el Tab Proyectos
 - **Cargabilidad 2026** (si fue importada de Kimble): aparece en rojo si supera el 80%
@@ -504,9 +516,29 @@ Un consultor está en estado **Rolling Off** cuando su asignación activa más p
 
 ### Disponible (Available Now)
 
-Un consultor aparece como **Disponible** cuando:
-1. No tiene ninguna asignación activa en proyecto cliente (dedicación total = 0%)
+Bench calcula un **% de disponibilidad** para cada consultor en lugar de un simple sí/no:
+
+```
+% de disponibilidad = 100 − % de dedicación total
+```
+
+El % de dedicación total aquí es la misma cifra que se muestra en la barra de dedicación de cada consultor en el Tab People (ver sección [5a](#5a-tab-people)) — la suma de todas sus asignaciones de proyecto activas más sus tareas de playa activas. **No debe confundirse con la Cargabilidad 2026** descrita arriba: esa es un histórico anual que viene de Kimble, mientras que esta es la carga vigente hoy.
+
+Ese porcentaje se agrupa en tres bandas, visibles como sub-filtros dentro del chip **Available Now** (ver sección [5a — Sub-filtros de disponibilidad](#sub-filtros-de-disponibilidad)):
+
+| Banda | % de disponibilidad | Dedicación total equivalente | Significado |
+|-------|----------------------|-------------------------------|--------------|
+| 🟢 **Fully Available** | 81% – 100% | 0% – 19% | Prácticamente libre |
+| 🔵 **Mostly Available** | 51% – 80% | 20% – 49% | Tiene la mayor parte de su tiempo libre |
+| 🟠 **Partially Available** | 10% – 50% | 50% – 90% | Le queda algo de espacio, pero ya está mayormente ocupado |
+
+Un consultor solo aparece en el chip **Available Now** (y en alguna de estas tres bandas) cuando se cumplen ambas condiciones:
+1. Su % de disponibilidad es de al menos 10% (es decir, dedicación total ≤ 90%)
 2. Su fecha de disponibilidad (`available_from`) ya llegó o es hoy
+
+Por debajo del 10% de disponibilidad (dedicación total mayor al 90%), el consultor deja de considerarse "disponible" — no aparece en ninguna de las tres bandas. Seguirá viéndose bajo **On Project**, y si corresponde, con el badge de **En vigilancia** o **Riesgo de fatiga**.
+
+> **Por qué se hizo este cambio:** antes, cualquier consultor con aunque fuera 1% de capacidad libre aparecía en "Available Now" junto a quienes estaban 100% disponibles, generando ruido para HR al momento de buscar candidatos reales para un proyecto nuevo. Ahora solo se muestran quienes tienen una franja de capacidad realmente utilizable.
 
 ### Estados de proyectos
 
