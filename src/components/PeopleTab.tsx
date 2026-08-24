@@ -11,6 +11,25 @@ import { getInitials, formatDate, isAvailableNow } from '@/lib/utils'
 import type { Profile, Project, ProjectAssignment, BeachAssignment, BeachTaskType, VacationRequest } from '@/lib/types'
 
 type FilterKey = 'all' | 'available' | 'on_project' | 'rolling_off' | 'over_dedicated'
+type AvailabilityBand = 'full' | 'mostly' | 'partial'
+
+const AVAILABILITY_BAND_LABEL: Record<AvailabilityBand, string> = {
+  full: 'Fully Available (81–100%)',
+  mostly: 'Mostly Available (51–80%)',
+  partial: 'Partially Available (10–50%)',
+}
+const AVAILABILITY_BAND_CHIP_COLOR: Record<AvailabilityBand, string> = {
+  full: 'green',
+  mostly: 'blue',
+  partial: 'amber',
+}
+// available% = 100 − total dedication%, clamped to [0, 100]
+function availabilityBandOf(availabilityPct: number): AvailabilityBand | null {
+  if (availabilityPct >= 81) return 'full'
+  if (availabilityPct >= 51) return 'mostly'
+  if (availabilityPct >= 10) return 'partial'
+  return null
+}
 
 const BEACH_TASK_TYPES: BeachTaskType[] = ['Propuesta', 'Actividad Interna', 'Apoyo a Proyecto', 'Otro']
 
@@ -30,8 +49,8 @@ interface ConsultantStats {
   fatigueScore: number      // 0–1 composite: 30% carga + 30% sin descanso (placeholder) + 40% tendencia anual
   fatigueLevel: 'normal' | 'vigilancia' | 'riesgo'
   isAtFatigueRisk: boolean  // fatigueLevel === 'riesgo'
-  isAvailable: boolean
-  hasSpareCapacity: boolean // dedication below max, but not fully free — still surfaces in Available Now
+  availabilityPct: number         // 100 − totalDedication, clamped [0, 100]
+  availabilityBand: AvailabilityBand | null // null = not shown in Available Now (below 10%, or not available yet)
   isRollingOff: boolean
   isOnProject: boolean
   isOnBeach: boolean
@@ -80,7 +99,7 @@ function statusBadge(stats: ConsultantStats) {
     return <Badge variant="warning" className="shrink-0 text-xs gap-1"><AlertTriangle size={10} /> En vigilancia</Badge>
   if (stats.isRollingOff)
     return <Badge variant="warning" className="shrink-0 text-xs gap-1"><Clock size={10} /> Rolling off</Badge>
-  if (stats.isAvailable)
+  if (stats.availabilityBand)
     return <Badge variant="success" className="shrink-0 text-xs">Available now</Badge>
   return <Badge variant="secondary" className="shrink-0 text-xs">On project</Badge>
 }
@@ -246,6 +265,7 @@ export default function PeopleTab({
   onAssignBeach, onRemoveBeach, onAddVacation, onRemoveVacation, onDeactivate, onSetAdminRole,
 }: PeopleTabProps) {
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityBand | null>(null)
   const [search, setSearch] = useState('')
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
   const [addAdminId, setAddAdminId] = useState('')
@@ -294,6 +314,7 @@ export default function PeopleTab({
       const beachDedication = activeBeachTasksEarly.reduce((sum, b) => sum + b.dedication_percentage, 0)
       const totalDedication = projectDedication + beachDedication
       const maxDedication = MAX_CARGABILITY[c.seniority] ?? 100
+      const availabilityPct = Math.max(0, Math.min(100, 100 - totalDedication))
 
       // ── Índice de Fatiga (composite, 30/30/40) ───────────────────────────────
       const { score: fatigueScore, level: fatigueLevel } = computeFatigue(
@@ -385,11 +406,8 @@ export default function PeopleTab({
         fatigueScore,
         fatigueLevel,
         isAtFatigueRisk: fatigueLevel === 'riesgo',
-        isAvailable: totalDedication === 0 && isAvailableNow(c.available_from),
-        // Partially-staffed consultants (dedication below their max capacity) still
-        // have room for additional work, so they surface in the Available Now tab
-        // even though their badge continues to reflect their actual project status.
-        hasSpareCapacity: totalDedication > 0 && totalDedication < maxDedication,
+        availabilityPct,
+        availabilityBand: isAvailableNow(c.available_from) ? availabilityBandOf(availabilityPct) : null,
         isRollingOff,
         isOnProject: projectDedication > 0,
         isOnBeach: projectDedication === 0,
@@ -416,15 +434,21 @@ export default function PeopleTab({
 
   const counts = {
     all: stats.length,
-    available: stats.filter((s) => s.isAvailable || s.hasSpareCapacity).length,
+    available: stats.filter((s) => s.availabilityBand !== null).length,
     on_project: stats.filter((s) => s.isOnProject).length,
     rolling_off: stats.filter((s) => s.isRollingOff).length,
     over_dedicated: stats.filter((s) => s.isAtFatigueRisk).length,
+    full: stats.filter((s) => s.availabilityBand === 'full').length,
+    mostly: stats.filter((s) => s.availabilityBand === 'mostly').length,
+    partial: stats.filter((s) => s.availabilityBand === 'partial').length,
   }
 
   const filtered = stats
     .filter((s) => {
-      if (filter === 'available') return s.isAvailable || s.hasSpareCapacity
+      if (filter === 'available') {
+        if (s.availabilityBand === null) return false
+        return availabilityFilter === null || s.availabilityBand === availabilityFilter
+      }
       if (filter === 'on_project') return s.isOnProject
       if (filter === 'rolling_off') return s.isRollingOff
       if (filter === 'over_dedicated') return s.isAtFatigueRisk
@@ -691,13 +715,29 @@ export default function PeopleTab({
         )}
 
         {/* Filter chips */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          <FilterChip label="All" count={counts.all} active={filter === 'all'} color="navy" onClick={() => setFilter('all')} />
-          <FilterChip label="Available Now" count={counts.available} active={filter === 'available'} color="green" onClick={() => setFilter('available')} />
-          <FilterChip label="On Project" count={counts.on_project} active={filter === 'on_project'} color="blue" onClick={() => setFilter('on_project')} />
-          <FilterChip label="Rolling Off (30d)" count={counts.rolling_off} active={filter === 'rolling_off'} color="amber" onClick={() => setFilter('rolling_off')} />
-          <FilterChip label="Riesgo de fatiga" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => setFilter('over_dedicated')} />
+        <div className="mb-2 flex flex-wrap gap-2">
+          <FilterChip label="All" count={counts.all} active={filter === 'all'} color="navy" onClick={() => { setFilter('all'); setAvailabilityFilter(null) }} />
+          <FilterChip label="Available Now" count={counts.available} active={filter === 'available'} color="green" onClick={() => { setFilter('available'); setAvailabilityFilter(null) }} />
+          <FilterChip label="On Project" count={counts.on_project} active={filter === 'on_project'} color="blue" onClick={() => { setFilter('on_project'); setAvailabilityFilter(null) }} />
+          <FilterChip label="Rolling Off (30d)" count={counts.rolling_off} active={filter === 'rolling_off'} color="amber" onClick={() => { setFilter('rolling_off'); setAvailabilityFilter(null) }} />
+          <FilterChip label="Riesgo de fatiga" count={counts.over_dedicated} active={filter === 'over_dedicated'} color="red" onClick={() => { setFilter('over_dedicated'); setAvailabilityFilter(null) }} />
         </div>
+
+        {/* Availability band sub-filters — only when "Available Now" is selected */}
+        {filter === 'available' && (
+          <div className="mb-4 flex flex-wrap gap-2 pl-3">
+            {(['full', 'mostly', 'partial'] as AvailabilityBand[]).map((band) => (
+              <FilterChip
+                key={band}
+                label={AVAILABILITY_BAND_LABEL[band]}
+                count={counts[band]}
+                active={availabilityFilter === band}
+                color={AVAILABILITY_BAND_CHIP_COLOR[band]}
+                onClick={() => setAvailabilityFilter((v) => (v === band ? null : band))}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Search */}
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
