@@ -253,12 +253,25 @@ La barra de búsqueda filtra por nombre, seniority, habilidades y área de prác
 
 #### Información de cada consultor
 
+![Fila de un consultor en el Tab People, con los campos principales numerados](manual-assets/tab-people-fila-consultor.svg)
+
+> La imagen usa datos de ejemplo, no un consultor real. Cada número corresponde a la descripción de abajo:
+>
+> 1. **Nombre, seniority y área de práctica**
+> 2. **Asignación activa**: % de dedicación a ese proyecto + nombre + fecha de fin + etiqueta de antigüedad (ej. "6mo") — ver el detalle de esta etiqueta más abajo
+> 3. **Primeras habilidades** del consultor, con contador de las restantes
+> 4. **Badge de estado** — ver los 5 estados posibles más abajo
+> 5. **Barra de dedicación** — ver la fórmula en [Glosario — % de Dedicación](#de-dedicación)
+> 6. **Cargabilidad 2026** — no confundir con el número de la barra de dedicación (punto 5); son cifras distintas, ver [Glosario](#cargabilidad-2026)
+> 7. **Fecha de disponibilidad** o "Available now"
+
 Cada fila del listado muestra:
 
 - **Avatar e iniciales**, nombre, seniority y área de práctica
-- **Asignaciones activas** (badge azul oscuro): nombre del proyecto + % de dedicación + fecha de fin
+- **Asignaciones activas** (badge azul oscuro): nombre del proyecto + % de dedicación + fecha de fin + una etiqueta de antigüedad (ej. "6mo"). Esa etiqueta son los meses transcurridos desde la fecha de inicio de esa asignación (`start_date`) hasta hoy — **no** desde el inicio del proyecto completo, sino desde que ese consultor específico entró a él.
+  > En asignaciones que vienen de Kimble, esa fecha de inicio a veces refleja el comienzo del período de booking vigente en Kimble, no necesariamente el día real en que el consultor empezó a trabajar — por eso pueden verse varias asignaciones distintas de un mismo consultor con la misma fecha de inicio.
 - **Asignaciones próximas** (badge ámbar): proyectos que inician en el futuro con su fecha de inicio
-- **Asignaciones pasadas** (badge gris): proyectos recientes terminados con duración (ej. "3mo", "12mo+")
+- **Asignaciones pasadas** (badge gris): proyectos recientes terminados, con la misma etiqueta de antigüedad indicando cuánto duró la asignación (ej. "3mo", "12mo+")
 - **Primeras 4 habilidades** del consultor
 - **Badge de estado** (esquina superior derecha de la fila):
   - 🔴 **Riesgo de fatiga** — Índice > 0.90
@@ -481,6 +494,24 @@ Los 243 días hábiles corresponden al calendario laboral colombiano del año 20
 - Aparece en **rojo** si supera el 80%
 - Es el componente principal (Pilar 3) del Índice de Fatiga
 - Se actualiza con cada importación de Kimble
+
+### % de Dedicación
+
+Es el número que aparece en la **barra de dedicación** de cada consultor en el Tab People (por ejemplo "62% /100%") y en el badge de estado. **No debe confundirse con la Cargabilidad 2026** de arriba: esa es un histórico anual que viene de Kimble; esta es la carga vigente **hoy**.
+
+**Fórmula:**
+```
+% de dedicación total = Σ (dedicación % de cada asignación de proyecto activa hoy)
+                       + Σ (dedicación % de cada tarea de playa activa hoy)
+```
+
+Una asignación o tarea de playa está "activa hoy" cuando su fecha de inicio ya pasó (o no tiene) y su fecha de fin todavía no llega (o no tiene).
+
+Este mismo número:
+- Alimenta el **Pilar 1** (30%) del Índice de Fatiga
+- Es la base del **% de disponibilidad** (`100 − % de dedicación total`) que agrupa a los consultores en las bandas Fully / Mostly / Partially Available (ver [Disponible (Available Now)](#disponible-available-now))
+
+> **Nota sobre datos de Kimble:** cuando una asignación de Kimble se extiende o se revisa, a veces el archivo exportado trae más de una fila para el mismo (proyecto, consultor) — una vigente y una vieja que quedó desactualizada. Bench solo usa la fila cuya ventana de fechas incluye la fecha de hoy para calcular la dedicación; no suma filas viejas y nuevas entre sí, para evitar sobrecontar.
 
 ### Índice de Fatiga
 

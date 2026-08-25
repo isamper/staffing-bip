@@ -1,0 +1,70 @@
+<svg width="900" height="196" viewBox="0 0 900 196" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L8,4 L0,8 z" fill="#E8491D"></path>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="196" fill="#FFFFFF"></rect>
+  <rect x="8" y="8" width="884" height="170" rx="12" fill="#FFFFFF" stroke="#E1E4EA" stroke-width="1.5"></rect>
+  <text x="24" y="27" font-size="10" letter-spacing="1" fill="#94A3B8">TAB PEOPLE — FILA DE UN CONSULTOR</text>
+
+  <!-- identity -->
+  <circle cx="43" cy="64" r="19" fill="#1B3A5C"></circle>
+  <text x="43" y="68" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">AB</text>
+  <text x="74" y="58" font-size="14" font-weight="600" fill="#1B3A5C">Andrea Bello</text>
+  <text x="74" y="74" font-size="12" fill="#64748B">Senior Consultant</text>
+  <text x="74" y="89" font-size="12" fill="#94A3B8">Technology Advisory</text>
+
+  <!-- project chip + antigüedad -->
+  <rect x="224" y="48" width="300" height="24" rx="12" fill="#EEF3F8" stroke="#D9E4EE"></rect>
+  <text x="236" y="64" font-size="12" font-weight="700" fill="#1B3A5C">62%</text>
+  <text x="264" y="64" font-size="12" fill="#2E5478">Proyecto Fénix</text>
+  <text x="364" y="64" font-size="11.5" fill="#7FA0BD">· vence 31 dic 2026</text>
+  <rect x="532" y="49" width="36" height="22" rx="11" fill="#FFFFFF" stroke="#D9E4EE"></rect>
+  <text x="550" y="64" font-size="10.5" font-weight="700" fill="#2E5478" text-anchor="middle">6mo</text>
+
+  <!-- skills -->
+  <rect x="224" y="86" width="88" height="18" rx="4" fill="#F8FAFC" stroke="#F1F5F9"></rect>
+  <text x="230" y="99" font-size="10.5" fill="#64748B">Estrategia de TI</text>
+  <rect x="318" y="86" width="76" height="18" rx="4" fill="#F8FAFC" stroke="#F1F5F9"></rect>
+  <text x="324" y="99" font-size="10.5" fill="#64748B">Arquitectura</text>
+  <rect x="400" y="86" width="112" height="18" rx="4" fill="#F8FAFC" stroke="#F1F5F9"></rect>
+  <text x="406" y="99" font-size="10.5" fill="#64748B">Gestión de Proyectos</text>
+  <rect x="518" y="86" width="44" height="18" rx="4" fill="#F8FAFC" stroke="#F1F5F9"></rect>
+  <text x="540" y="99" font-size="10.5" fill="#64748B" text-anchor="middle">ERP</text>
+  <text x="572" y="99" font-size="10.5" fill="#94A3B8">+2</text>
+
+  <!-- right column -->
+  <rect x="756" y="48" width="96" height="20" rx="10" fill="#16A34A"></rect>
+  <text x="804" y="62" font-size="10.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Available now</text>
+
+  <text x="852" y="92" font-size="12" font-weight="700" fill="#1B3A5C" text-anchor="end">62% <tspan fill="#94A3B8" font-weight="400">/100%</tspan></text>
+  <rect x="764" y="98" width="88" height="5" rx="2.5" fill="#F1F5F9"></rect>
+  <rect x="764" y="98" width="55" height="5" rx="2.5" fill="#1B3A5C"></rect>
+
+  <text x="852" y="126" font-size="11.5" fill="#94A3B8" text-anchor="end">Cargabilidad 2026: <tspan fill="#334155" font-weight="700">56%</tspan></text>
+  <text x="852" y="148" font-size="11.5" fill="#94A3B8" text-anchor="end">Available now</text>
+
+  <!-- annotation leaders -->
+  <g stroke="#E8491D" stroke-width="1.6" stroke-dasharray="3 3" fill="none">
+    <path d="M 52 29 C 60 40, 66 48, 76 53" marker-end="url(#arrow)"></path>
+    <path d="M 300 29 C 300 36, 300 42, 300 46" marker-end="url(#arrow)"></path>
+    <path d="M 320 113 C 320 106, 320 102, 320 100" marker-end="url(#arrow)"></path>
+    <path d="M 867 28 C 850 34, 836 42, 822 49" marker-end="url(#arrow)"></path>
+    <path d="M 867 74 C 862 82, 858 90, 854 96" marker-end="url(#arrow)"></path>
+    <path d="M 867 112 C 862 116, 858 120, 854 122" marker-end="url(#arrow)"></path>
+    <path d="M 867 144 C 862 145, 858 146, 854 146" marker-end="url(#arrow)"></path>
+  </g>
+
+  <!-- numbered callouts -->
+  <g font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">
+    <circle cx="52" cy="19" r="11" fill="#E8491D"></circle><text x="52" y="23">1</text>
+    <circle cx="300" cy="19" r="11" fill="#E8491D"></circle><text x="300" y="23">2</text>
+    <circle cx="320" cy="124" r="11" fill="#E8491D"></circle><text x="320" y="128">3</text>
+    <circle cx="878" cy="28" r="11" fill="#E8491D"></circle><text x="878" y="32">4</text>
+    <circle cx="878" cy="74" r="11" fill="#E8491D"></circle><text x="878" y="78">5</text>
+    <circle cx="878" cy="112" r="11" fill="#E8491D"></circle><text x="878" y="116">6</text>
+    <circle cx="878" cy="144" r="11" fill="#E8491D"></circle><text x="878" y="148">7</text>
+  </g>
+</svg>
