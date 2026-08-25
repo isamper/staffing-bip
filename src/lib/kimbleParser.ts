@@ -244,15 +244,21 @@ export function parseKimbleExcel(
         )
 
         // ── Raw assignments (Firm rows only) ─────────────────────────────
-        // A consultant can appear multiple times for the same project (extensions).
-        // Merge by (projectId, consultantName): sum usage days, track the earliest
-        // start and latest end of that consultant's window on this project.
+        // A consultant can appear multiple times for the same (project, consultant)
+        // pair — usually a stale forecast row left over from before the booking was
+        // revised/extended, sitting alongside the current one. These are NOT separate
+        // additive bookings: they typically share the same start date with one row's
+        // end date nested inside the other's, so summing their usage days double-counts
+        // the same work. Instead, for each (project, consultant) pair, keep only the
+        // row(s) whose window contains today — i.e. still active. If more than one row
+        // is genuinely active at once (concurrent bookings), those are summed since
+        // that's real simultaneous workload. If none is active (fully past or fully
+        // future — e.g. an ended project's historical row), fall back to the single
+        // row with the latest end date so the pair still imports for the record.
         type MergedKey = string
-        const mergedMap = new Map<MergedKey, {
-          projectId: string; consultantName: string
-          totalUsageDays: number; earliestStartDate: string; latestEndDate: string
-        }>()
+        type RawRow = { projectId: string; consultantName: string; usageDays: number; startDate: string; endDate: string }
 
+        const rowsByKey = new Map<MergedKey, RawRow[]>()
         for (const row of firmRows) {
           const engRaw         = String(row[5] ?? '')
           const code           = extractCode(engRaw)
@@ -262,20 +268,37 @@ export function parseKimbleExcel(
           const rowEndDate     = parseDMY(row[9])
 
           const key: MergedKey = `${code}||${consultantName}`
-          const existing = mergedMap.get(key)
-          if (existing) {
-            existing.totalUsageDays += usageDays
-            if (rowStartDate < existing.earliestStartDate) existing.earliestStartDate = rowStartDate
-            if (rowEndDate   > existing.latestEndDate)     existing.latestEndDate     = rowEndDate
-          } else {
-            mergedMap.set(key, {
-              projectId: code,
-              consultantName,
-              totalUsageDays: usageDays,
-              earliestStartDate: rowStartDate,
-              latestEndDate: rowEndDate,
-            })
-          }
+          if (!rowsByKey.has(key)) rowsByKey.set(key, [])
+          rowsByKey.get(key)!.push({
+            projectId: code, consultantName, usageDays,
+            startDate: rowStartDate, endDate: rowEndDate,
+          })
+        }
+
+        const mergedMap = new Map<MergedKey, {
+          projectId: string; consultantName: string
+          totalUsageDays: number; earliestStartDate: string; latestEndDate: string
+        }>()
+
+        for (const [key, entries] of rowsByKey.entries()) {
+          const activeRows = entries.filter(
+            (r) => r.startDate <= todayStr && r.endDate >= todayStr,
+          )
+          const chosen = activeRows.length > 0
+            ? activeRows
+            : entries.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)).slice(0, 1)
+
+          const totalUsageDays = chosen.reduce((sum, r) => sum + r.usageDays, 0)
+          const earliestStartDate = chosen.reduce((min, r) => (r.startDate < min ? r.startDate : min), chosen[0].startDate)
+          const latestEndDate = chosen.reduce((max, r) => (r.endDate > max ? r.endDate : max), chosen[0].endDate)
+
+          mergedMap.set(key, {
+            projectId: chosen[0].projectId,
+            consultantName: chosen[0].consultantName,
+            totalUsageDays,
+            earliestStartDate,
+            latestEndDate,
+          })
         }
 
         const rawAssignments: KimbleRawAssignment[] = [...mergedMap.values()].map((entry) => {
