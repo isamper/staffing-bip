@@ -293,10 +293,11 @@ export function matchConsultantsForPosition(
   vacations: VacationRequest[],
   assignments: ProjectAssignment[] = [],
 ): MatchResult[] {
+  const neededLevel = SENIORITY_ORDER[position.seniority] ?? 0
   return consultants
-    .filter((c) => c.is_active)
+    .filter((c) => c.is_active && Math.abs((SENIORITY_ORDER[c.seniority] ?? 0) - neededLevel) <= 1)
     .map((c) => scoreConsultantForPosition(c, position, project, likes, vacations, assignments))
-    .filter((r) => !r.unavailable)  // exclude only truly unavailable (no capacity)
+    .filter((r) => !r.unavailable)
     .sort((a, b) => b.score - a.score)
 }
 
