@@ -88,6 +88,7 @@ export interface Project {
   // Kimble-derived fields
   kimble_code?: string    // e.g. "e000720"
   service_area?: string   // Kimble service area (e.g. "Strategy & Innovation")
+  is_manual?: boolean     // true = created manually in the app (not from Kimble)
 }
 
 export interface VacationRequest {

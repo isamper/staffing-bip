@@ -48,6 +48,25 @@
 ## Database Schema
 
 ```sql
+-- Manual pipeline projects (not in Kimble — created directly in the app)
+CREATE TABLE manual_projects (
+  id             text PRIMARY KEY,             -- format: "manual-proj-{timestamp}"
+  name           text NOT NULL,
+  client         text,
+  industry       text,
+  description    text,
+  service_area   text,
+  start_date     text,
+  end_date       text,
+  team_size      int DEFAULT 1,
+  skills_required jsonb DEFAULT '[]',
+  positions      jsonb DEFAULT '[]',           -- array of Position objects
+  created_at     timestamptz DEFAULT now()
+);
+-- RLS: authenticated users can read/write
+-- Realtime enabled
+-- Run: scripts/migration_add_manual_projects.sql
+
 -- Extends auth.users (Supabase manages auth.users)
 CREATE TABLE profiles (
   id                    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -166,11 +185,11 @@ CREATE TABLE notifications (
 
 | Component | Purpose |
 |---|---|
-| `ProjectList` | Left column — two sections: "Needs Staffing" (Open/Partially Staffed, upcoming) and "In Progress" (Active) |
+| `ProjectList` | Left column — two sections: "Needs Staffing" (Open/Partially Staffed, upcoming, manual pipeline projects sorted first) and "In Progress" (Active) |
 | `MatchPanel` | Right panel — for upcoming projects: ranked consultant matches with scores, reasons, Assign button; for Active projects: read-only team list with dedication % and end dates |
 | `ConsultantDirectory` | Right column — searchable/filterable consultant list with availability |
-| `AddProjectModal` | HR creates new project |
-| `EditProjectModal` | HR edits project details and status |
+| `NewManualProjectDialog` | HR creates a pipeline/dummy project (not in Kimble) with name, client, industry, service area, dates, and role rows (seniority × headcount). Saved to `manual_projects` table (Supabase) or localStorage (demo). Survives Kimble re-imports. |
+| `ProjectCard` | Shows "Pipeline / No Kimble" badge (purple) + trash delete button for manually-created projects |
 
 **Tab: Time Off**
 

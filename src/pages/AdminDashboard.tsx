@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Search, Heart,
-  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus,
+  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus, Trash2,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { SUGGESTED_SKILLS, ALL_SKILLS } from '@/lib/skills'
@@ -26,8 +26,9 @@ import { supabase, isDemoMode } from '@/lib/supabase'
 import PeopleTab from '@/components/PeopleTab'
 import AutoStaffingPlan from '@/components/AutoStaffingPlan'
 import KimbleImportModal from '@/components/KimbleImportModal'
+import NewManualProjectDialog from '@/components/NewManualProjectDialog'
 import type { KimbleImportResult } from '@/lib/kimbleParser'
-import type { Profile, Project, VacationRequest, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
+import type { Profile, Project, Position, VacationRequest, ProjectAssignment, BeachAssignment, BeachTaskType } from '@/lib/types'
 import { computeFatigue, getBeachDedication } from '@/lib/fatigue'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -141,11 +142,13 @@ function ProjectCard({
   assigned,
   selected,
   onClick,
+  onDelete,
 }: {
   project: Project
   assigned: number
   selected: boolean
   onClick: () => void
+  onDelete?: () => void
 }) {
   const isEnded = new Date(project.end_date) < new Date(new Date().toDateString())
   const derivedStatus = isEnded
@@ -159,18 +162,34 @@ function ProjectCard({
     : 'Partially Staffed'
 
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`w-full rounded-lg border p-3 text-left transition hover:border-navy-800 ${
+      className={`relative w-full rounded-lg border p-3 text-left cursor-pointer transition hover:border-navy-800 ${
         selected ? 'border-navy-800 bg-navy-50' : 'border-slate-200 bg-white'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="font-medium text-navy-800 text-sm">{project.name}</p>
-        <Badge variant={projectStatusVariant(derivedStatus)} className="shrink-0 text-xs">
-          {derivedStatus}
-        </Badge>
+        <p className="font-medium text-navy-800 text-sm pr-1">{project.name}</p>
+        <div className="flex items-center gap-1 shrink-0">
+          <Badge variant={projectStatusVariant(derivedStatus)} className="text-xs">
+            {derivedStatus}
+          </Badge>
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
+              title="Eliminar proyecto"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
       </div>
+      {project.is_manual && (
+        <span className="inline-flex mt-1 items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 border border-purple-200">
+          Pipeline / No Kimble
+        </span>
+      )}
       <p className="mt-0.5 text-xs text-slate-500">{project.client}</p>
       <p className="mt-1 text-xs text-slate-400">
         {derivedStatus === 'Ended'
@@ -179,7 +198,7 @@ function ProjectCard({
           ? `${assigned} staffed · Ends ${formatDate(project.end_date)}`
           : `${assigned}/${project.team_size} staffed · Starts ${formatDate(project.start_date)}`}
       </p>
-    </button>
+    </div>
   )
 }
 
@@ -349,6 +368,7 @@ const BEACH_STORAGE_KEY       = 'bench_beach_v1'
 const VACATIONS_STORAGE_KEY   = 'bench_vacations_v1'
 const ASSIGNMENTS_STORAGE_KEY = 'bench_assignments_v1'
 const PROFILES_STORAGE_KEY    = 'bench_profiles_v1'
+const MANUAL_PROJECTS_KEY     = 'bench_manual_projects_v1'
 
 function loadDeactivatedIds(): Set<string> {
   try {
@@ -390,6 +410,7 @@ export default function AdminDashboard() {
   const [lastImport, setLastImport] = useState<string | null>(null)
   const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
+  const [newProjOpen, setNewProjOpen] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
   const [addStartDate, setAddStartDate] = useState('')
@@ -464,6 +485,15 @@ export default function AdminDashboard() {
           }
         }
       } catch { /* ignore */ }
+
+      // Manual pipeline projects
+      const savedManual = loadFromStorage<Project>(MANUAL_PROJECTS_KEY, [])
+      if (savedManual.length > 0) {
+        setProjects((prev) => {
+          const manualIds = new Set(savedManual.map((p) => p.id))
+          return [...prev.filter((p) => !manualIds.has(p.id)), ...savedManual]
+        })
+      }
     } else {
       // ── Supabase branch ──────────────────────────────────────────────────────
 
@@ -538,7 +568,26 @@ export default function AdminDashboard() {
           }
         })
 
-      // 7. New hire profiles from Supabase profiles table
+      // 7. Manual pipeline projects
+      supabase
+        .from('manual_projects')
+        .select('*')
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const mps = data.map((r) => ({
+              ...r,
+              skills_required: (r.skills_required as string[]) ?? [],
+              positions: (r.positions as Position[]) ?? [],
+              is_manual: true as const,
+            } as Project))
+            setProjects((prev) => {
+              const manualIds = new Set(mps.map((p) => p.id))
+              return [...prev.filter((p) => !manualIds.has(p.id)), ...mps]
+            })
+          }
+        })
+
+      // 8. New hire profiles from Supabase profiles table
       const knownEmails = new Set([
         ...mockConsultants.map((c) => nameToEmail(c.name)),
         ...Object.keys(EMAIL_OVERRIDES),
@@ -584,6 +633,7 @@ export default function AdminDashboard() {
       refreshFnRef.current?.vacations()
       refreshFnRef.current?.deactivated()
       refreshFnRef.current?.cvProfiles()
+      refreshFnRef.current?.manualProjects()
     }
 
     const id = setInterval(poll, 10_000)
@@ -600,6 +650,7 @@ export default function AdminDashboard() {
     vacations: () => void
     deactivated: () => void
     cvProfiles: () => void
+    manualProjects: () => void
   } | null>(null)
 
   // Update ref on every render — no stale-closure problem in Realtime callbacks.
@@ -667,6 +718,22 @@ export default function AdminDashboard() {
         }
       })
     },
+    manualProjects: () => {
+      if (!supabase) return
+      supabase.from('manual_projects').select('*').then(({ data }) => {
+        if (!data) return
+        const mps = data.map((r) => ({
+          ...r,
+          skills_required: (r.skills_required as string[]) ?? [],
+          positions: (r.positions as Position[]) ?? [],
+          is_manual: true as const,
+        } as Project))
+        setProjects((prev) => {
+          const manualIds = new Set(mps.map((p) => p.id))
+          return [...prev.filter((p) => !manualIds.has(p.id)), ...mps]
+        })
+      })
+    },
   }
 
   useEffect(() => {
@@ -686,6 +753,8 @@ export default function AdminDashboard() {
         () => refreshFnRef.current?.deactivated())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_profiles' },
         () => refreshFnRef.current?.cvProfiles())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_projects' },
+        () => refreshFnRef.current?.manualProjects())
       .subscribe()
 
     return () => { supabase!.removeChannel(channel) }
@@ -788,12 +857,14 @@ export default function AdminDashboard() {
         }
       }
 
-      // Keep ONLY projects that appear in the Kimble file.
-      // Anything not in Kimble is a project that ended before this year — discard it.
+      // Keep ONLY projects that appear in the Kimble file (manual/pipeline projects are always preserved).
+      // Anything not in Kimble (and not manual) is a project that ended before this year — discard it.
+      const manualOnes = prev.filter((p) => p.is_manual)
       return prev
-        .filter((p) => updatedById.has(p.id))
+        .filter((p) => !p.is_manual && updatedById.has(p.id))
         .map((p) => updatedById.get(p.id)!)
         .concat(brandNewProjects)
+        .concat(manualOnes)
     })
 
     // 2. Build project assignments from raw Kimble rows, resolving name → consultant id
@@ -914,7 +985,9 @@ export default function AdminDashboard() {
 
   const endedProjects = projects.filter((p) => new Date(p.end_date) < today)
   const visibleProjects = projects.filter((p) => new Date(p.end_date) >= today)
-  const upcomingProjects = visibleProjects.filter((p) => p.status !== 'Active')
+  const upcomingProjects = visibleProjects
+    .filter((p) => p.status !== 'Active')
+    .sort((a, b) => (b.is_manual ? 1 : 0) - (a.is_manual ? 1 : 0))
   const activeProjects = visibleProjects.filter((p) => p.status === 'Active')
 
   const filteredConsultants = consultants.filter(
@@ -967,6 +1040,41 @@ export default function AdminDashboard() {
       (SENIORITY_RANK[a.consultant.seniority] ?? 99) -
       (SENIORITY_RANK[b.consultant.seniority] ?? 99),
     )
+
+  async function handleCreateManualProject(project: Project) {
+    setProjects((prev) => [project, ...prev])
+    setSelectedProject(project)
+    if (!isDemoMode && supabase) {
+      await supabase.from('manual_projects').insert({
+        id: project.id,
+        name: project.name,
+        client: project.client,
+        industry: project.industry,
+        description: project.description,
+        service_area: project.service_area ?? null,
+        start_date: project.start_date,
+        end_date: project.end_date,
+        team_size: project.team_size,
+        skills_required: project.skills_required,
+        positions: project.positions ?? [],
+        created_at: project.created_at,
+      })
+    } else {
+      const current = loadFromStorage<Project>(MANUAL_PROJECTS_KEY, [])
+      saveToStorage(MANUAL_PROJECTS_KEY, [project, ...current.filter((p) => p.id !== project.id)])
+    }
+  }
+
+  async function handleDeleteManualProject(projectId: string) {
+    setProjects((prev) => prev.filter((p) => p.id !== projectId))
+    if (selectedProject?.id === projectId) setSelectedProject(null)
+    if (!isDemoMode && supabase) {
+      await supabase.from('manual_projects').delete().eq('id', projectId)
+    } else {
+      const current = loadFromStorage<Project>(MANUAL_PROJECTS_KEY, [])
+      saveToStorage(MANUAL_PROJECTS_KEY, current.filter((p) => p.id !== projectId))
+    }
+  }
 
   function handleUpdateProjectSkills(projectId: string, skills: string[]) {
     setProjects((prev) =>
@@ -1298,6 +1406,12 @@ export default function AdminDashboard() {
         onConfirm={handleKimbleImport}
       />
 
+      <NewManualProjectDialog
+        open={newProjOpen}
+        onClose={() => setNewProjOpen(false)}
+        onSave={handleCreateManualProject}
+      />
+
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
@@ -1384,6 +1498,11 @@ export default function AdminDashboard() {
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Project list */}
             <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" onClick={() => setNewProjOpen(true)}>
+                  <Plus size={14} className="mr-1" /> Nuevo Proyecto
+                </Button>
+              </div>
               {upcomingProjects.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-bip-red">
@@ -1397,6 +1516,7 @@ export default function AdminDashboard() {
                         assigned={assignments.filter((a) => a.project_id === project.id).length}
                         selected={selectedProject?.id === project.id}
                         onClick={() => { setSelectedProject(project); setReplacementsFor(null) }}
+                        onDelete={project.is_manual ? () => handleDeleteManualProject(project.id) : undefined}
                       />
                     ))}
                   </div>
