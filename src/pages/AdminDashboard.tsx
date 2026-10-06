@@ -1906,7 +1906,9 @@ export default function AdminDashboard() {
         <TabsContent value="staffing">
           <AutoStaffingPlan
             projects={visibleProjects}
-            consultants={consultants.filter((c) => !deactivatedIds.has(c.id))}
+            consultants={consultants
+              .filter((c) => !deactivatedIds.has(c.id))
+              .map((c) => cvProfiles[c.id] ? { ...c, ...cvProfiles[c.id] } : c)}
             assignments={assignments}
             vacations={vacations}
             likes={mockLikes}
