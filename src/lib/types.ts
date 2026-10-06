@@ -135,6 +135,7 @@ export interface MatchResult {
   score: number
   reason: string
   vacationWarning?: string
+  assignmentWarning?: string  // partial overlap with existing assignment during project period
   hasLiked: boolean
   isStretch?: boolean      // seniority mismatch — best available, not ideal
   unavailable?: boolean    // no capacity — excluded from suggestions

@@ -16,7 +16,8 @@ const SENIORITY_ORDER: Record<string, number> = {
 
 // Associate = Senior Associate (same group), Manager = Senior Manager (same group).
 // Used for the ±1 seniority filter and scoring in position matching.
-const GROUPED_SENIORITY_LEVEL: Record<string, number> = {
+// Also exported so AutoStaffingPlan can sort positions highest-first before generating the plan.
+export const SENIORITY_FILL_ORDER: Record<string, number> = {
   Intern: 0,
   Consultant: 1,
   'Senior Consultant': 2,
@@ -27,6 +28,23 @@ const GROUPED_SENIORITY_LEVEL: Record<string, number> = {
   Director: 5,
   Partner: 6,
   'Senior Partner': 7,
+}
+
+const GROUPED_SENIORITY_LEVEL = SENIORITY_FILL_ORDER
+
+function overlappingAssignments(
+  consultantId: string,
+  project: Project,
+  assignments: ProjectAssignment[],
+): ProjectAssignment[] {
+  const ps = new Date(project.start_date)
+  const pe = new Date(project.end_date)
+  return assignments.filter((a) => {
+    if (a.consultant_id !== consultantId) return false
+    const as = a.start_date ? new Date(a.start_date) : new Date(a.assigned_at)
+    const ae = a.end_date ? new Date(a.end_date) : pe
+    return as <= pe && ae >= ps
+  })
 }
 
 function totalDedicationDuringProject(
@@ -208,6 +226,21 @@ export function scoreConsultantForPosition(
     }
   }
 
+  // Partial overlap warning — show which assignments overlap even if they don't block
+  let assignmentWarning: string | undefined
+  if (usedDedication > 0) {
+    const overlapping = overlappingAssignments(consultant.id, project, assignments)
+    if (overlapping.length > 0) {
+      const latest = overlapping.reduce((max, a) =>
+        (a.end_date ?? '') > (max.end_date ?? '') ? a : max
+      )
+      const endLabel = latest.end_date
+        ? formatDate(latest.end_date)
+        : formatDate(project.end_date)
+      assignmentWarning = `Solapamiento con asignación existente hasta ${endLabel} (~${Math.round(usedDedication)}% dedicación estimada)`
+    }
+  }
+
   // Skills overlap (0–30) — position skills first, fall back to project skills_required
   const skillPool = position.skills.length > 0 ? position.skills : project.skills_required
   if (skillPool.length > 0) {
@@ -308,6 +341,7 @@ export function scoreConsultantForPosition(
     score: Math.max(0, Math.min(100, score)),
     reason: reasons.join('. ') + '.',
     vacationWarning,
+    assignmentWarning,
     hasLiked,
     isStretch,
   }

@@ -3,7 +3,7 @@ import { Zap, Check, X, AlertTriangle, Heart, ChevronDown, ChevronUp } from 'luc
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { matchConsultantsForPosition } from '@/lib/matching'
+import { matchConsultantsForPosition, SENIORITY_FILL_ORDER } from '@/lib/matching'
 import { getInitials, formatDate } from '@/lib/utils'
 import type {
   Profile,
@@ -68,7 +68,10 @@ export default function AutoStaffingPlan({
 
     const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
       const assignedCount = assignments.filter((a) => a.project_id === project.id).length
-      const positionsToFill = (project.positions ?? []).slice(assignedCount)
+      // Sort highest seniority first so Partners aren't "claimed" for Director slots
+      const positionsToFill = (project.positions ?? [])
+        .slice(assignedCount)
+        .sort((a, b) => (SENIORITY_FILL_ORDER[b.seniority] ?? 0) - (SENIORITY_FILL_ORDER[a.seniority] ?? 0))
 
       const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
         const available = consultants.filter(
@@ -343,6 +346,11 @@ export default function AutoStaffingPlan({
                                 {result.vacationWarning && (
                                   <p className="flex items-center gap-1 text-xs text-amber-600">
                                     <AlertTriangle size={10} /> {result.vacationWarning}
+                                  </p>
+                                )}
+                                {result.assignmentWarning && (
+                                  <p className="flex items-center gap-1 text-xs text-orange-600">
+                                    <AlertTriangle size={10} /> {result.assignmentWarning}
                                   </p>
                                 )}
                                 {(() => {
