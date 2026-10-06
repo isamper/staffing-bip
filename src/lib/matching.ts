@@ -14,6 +14,21 @@ const SENIORITY_ORDER: Record<string, number> = {
   'Senior Partner': 9,
 }
 
+// Associate = Senior Associate (same group), Manager = Senior Manager (same group).
+// Used for the ±1 seniority filter and scoring in position matching.
+const GROUPED_SENIORITY_LEVEL: Record<string, number> = {
+  Intern: 0,
+  Consultant: 1,
+  'Senior Consultant': 2,
+  Associate: 3,
+  'Senior Associate': 3,
+  Manager: 4,
+  'Senior Manager': 4,
+  Director: 5,
+  Partner: 6,
+  'Senior Partner': 7,
+}
+
 function totalDedicationDuringProject(
   consultantId: string,
   project: Project,
@@ -138,7 +153,7 @@ export function findReplacements(
   vacations: VacationRequest[],
   likes: ProjectLike[],
 ): MatchResult[] {
-  const consultantLevel = SENIORITY_ORDER[consultant.seniority] ?? 0
+  const consultantLevel = GROUPED_SENIORITY_LEVEL[consultant.seniority] ?? 0
   const alreadyOnProject = allAssignments
     .filter((a) => a.project_id === project.id)
     .map((a) => a.consultant_id)
@@ -148,7 +163,7 @@ export function findReplacements(
       c.is_active &&
       c.id !== consultant.id &&
       !alreadyOnProject.includes(c.id) &&
-      Math.abs((SENIORITY_ORDER[c.seniority] ?? 0) - consultantLevel) <= 1 &&
+      Math.abs((GROUPED_SENIORITY_LEVEL[c.seniority] ?? 0) - consultantLevel) <= 1 &&
       c.skills.some((s) =>
         consultant.skills.map((cs) => cs.toLowerCase()).includes(s.toLowerCase()),
       ),
@@ -230,9 +245,9 @@ export function scoreConsultantForPosition(
     reasons.push('Disponible ahora')
   }
 
-  // Seniority match (0–20) — partial credit for adjacent levels
-  const neededLevel = SENIORITY_ORDER[position.seniority] ?? 0
-  const consultantLevel = SENIORITY_ORDER[consultant.seniority] ?? 0
+  // Seniority match (0–20) — uses grouped levels so Associate=Sr Associate and Manager=Sr Manager
+  const neededLevel = GROUPED_SENIORITY_LEVEL[position.seniority] ?? 0
+  const consultantLevel = GROUPED_SENIORITY_LEVEL[consultant.seniority] ?? 0
   const diff = Math.abs(consultantLevel - neededLevel)
   let isStretch = false
   if (diff === 0) {
@@ -293,9 +308,9 @@ export function matchConsultantsForPosition(
   vacations: VacationRequest[],
   assignments: ProjectAssignment[] = [],
 ): MatchResult[] {
-  const neededLevel = SENIORITY_ORDER[position.seniority] ?? 0
+  const neededLevel = GROUPED_SENIORITY_LEVEL[position.seniority] ?? 0
   return consultants
-    .filter((c) => c.is_active && Math.abs((SENIORITY_ORDER[c.seniority] ?? 0) - neededLevel) <= 1)
+    .filter((c) => c.is_active && Math.abs((GROUPED_SENIORITY_LEVEL[c.seniority] ?? 0) - neededLevel) <= 1)
     .map((c) => scoreConsultantForPosition(c, position, project, likes, vacations, assignments))
     .filter((r) => !r.unavailable)
     .sort((a, b) => b.score - a.score)

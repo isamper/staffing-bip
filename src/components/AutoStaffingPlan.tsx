@@ -66,7 +66,8 @@ export default function AutoStaffingPlan({
     const alreadyAssignedIds = new Set(assignments.map((a) => a.consultant_id))
 
     const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
-      const positionsToFill = project.positions ?? []
+      const assignedCount = assignments.filter((a) => a.project_id === project.id).length
+      const positionsToFill = (project.positions ?? []).slice(assignedCount)
 
       const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
         const available = consultants.filter(
@@ -218,7 +219,7 @@ export default function AutoStaffingPlan({
                         <div className="border-t border-slate-100 px-3 pb-3 pt-2">
                           <p className="mb-2 text-xs font-medium text-slate-500">Positions to fill:</p>
                           <div className="space-y-2">
-                            {p.positions.map((pos) => (
+                            {p.positions.slice(assignments.filter((a) => a.project_id === p.id).length).map((pos) => (
                               <div key={pos.id} className="rounded-md bg-white border border-slate-100 px-3 py-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <p className="text-xs font-semibold text-navy-800">{pos.role}</p>

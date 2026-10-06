@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, X } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -28,13 +28,27 @@ interface RoleRow {
   headcount: number
 }
 
+function positionsToRoles(positions: Position[]): RoleRow[] {
+  const groups = new Map<string, number>()
+  for (const pos of positions) {
+    groups.set(pos.seniority, (groups.get(pos.seniority) ?? 0) + 1)
+  }
+  return Array.from(groups.entries()).map(([seniority, headcount], i) => ({
+    id: `r${i}`,
+    seniority: seniority as Seniority,
+    headcount,
+  }))
+}
+
 interface Props {
   open: boolean
   onClose: () => void
   onSave: (project: Project) => void
+  initialProject?: Project
 }
 
-export default function NewManualProjectDialog({ open, onClose, onSave }: Props) {
+export default function NewManualProjectDialog({ open, onClose, onSave, initialProject }: Props) {
+  const isEdit = !!initialProject
   const [name, setName] = useState('')
   const [client, setClient] = useState('')
   const [industry, setIndustry] = useState('')
@@ -45,6 +59,24 @@ export default function NewManualProjectDialog({ open, onClose, onSave }: Props)
   const [roles, setRoles] = useState<RoleRow[]>([
     { id: 'r1', seniority: 'Consultant', headcount: 1 },
   ])
+
+  // Populate form when opening in edit mode
+  useEffect(() => {
+    if (open && initialProject) {
+      setName(initialProject.name)
+      setClient(initialProject.client || '')
+      setIndustry(initialProject.industry || '')
+      setServiceArea(initialProject.service_area || '')
+      setDescription(initialProject.description || '')
+      setStartDate(initialProject.start_date || '')
+      setEndDate(initialProject.end_date || '')
+      setRoles(
+        initialProject.positions && initialProject.positions.length > 0
+          ? positionsToRoles(initialProject.positions)
+          : [{ id: 'r1', seniority: 'Consultant', headcount: 1 }]
+      )
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function addRole() {
     setRoles((prev) => [...prev, { id: `r${Date.now()}`, seniority: 'Consultant', headcount: 1 }])
@@ -71,7 +103,7 @@ export default function NewManualProjectDialog({ open, onClose, onSave }: Props)
     )
 
     const project: Project = {
-      id: `manual-proj-${Date.now()}`,
+      id: initialProject?.id ?? `manual-proj-${Date.now()}`,
       name: name.trim(),
       client: client.trim(),
       industry: industry || 'Other',
@@ -109,7 +141,9 @@ export default function NewManualProjectDialog({ open, onClose, onSave }: Props)
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <h2 className="text-base font-semibold text-navy-800 mb-4">Nuevo Proyecto Pipeline</h2>
+        <h2 className="text-base font-semibold text-navy-800 mb-4">
+          {isEdit ? 'Editar Proyecto Pipeline' : 'Nuevo Proyecto Pipeline'}
+        </h2>
 
         <div className="space-y-3">
           <div>
@@ -232,7 +266,7 @@ export default function NewManualProjectDialog({ open, onClose, onSave }: Props)
             Cancelar
           </Button>
           <Button size="sm" disabled={!isValid} onClick={handleSave}>
-            Crear proyecto
+            {isEdit ? 'Guardar cambios' : 'Crear proyecto'}
           </Button>
         </div>
       </DialogContent>

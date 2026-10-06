@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Search, Heart,
-  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus, Trash2,
+  AlertTriangle, ChevronDown, ChevronUp, Upload, Plus, X, UserPlus, Trash2, Pencil,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { SUGGESTED_SKILLS, ALL_SKILLS } from '@/lib/skills'
@@ -411,6 +411,8 @@ export default function AdminDashboard() {
   const [beachAssignments, setBeachAssignments] = useState<BeachAssignment[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [newProjOpen, setNewProjOpen] = useState(false)
+  const [editProjOpen, setEditProjOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [addSearch, setAddSearch] = useState('')
   const [addDedication, setAddDedication] = useState(100)
   const [addStartDate, setAddStartDate] = useState('')
@@ -1065,6 +1067,28 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleUpdateManualProject(project: Project) {
+    setProjects((prev) => prev.map((p) => p.id === project.id ? project : p))
+    if (selectedProject?.id === project.id) setSelectedProject(project)
+    if (!isDemoMode && supabase) {
+      await supabase.from('manual_projects').update({
+        name: project.name,
+        client: project.client,
+        industry: project.industry,
+        description: project.description,
+        service_area: project.service_area ?? null,
+        start_date: project.start_date,
+        end_date: project.end_date,
+        team_size: project.team_size,
+        skills_required: project.skills_required,
+        positions: project.positions ?? [],
+      }).eq('id', project.id)
+    } else {
+      const current = loadFromStorage<Project>(MANUAL_PROJECTS_KEY, [])
+      saveToStorage(MANUAL_PROJECTS_KEY, current.map((p) => p.id === project.id ? project : p))
+    }
+  }
+
   async function handleDeleteManualProject(projectId: string) {
     setProjects((prev) => prev.filter((p) => p.id !== projectId))
     if (selectedProject?.id === projectId) setSelectedProject(null)
@@ -1412,6 +1436,13 @@ export default function AdminDashboard() {
         onSave={handleCreateManualProject}
       />
 
+      <NewManualProjectDialog
+        open={editProjOpen}
+        onClose={() => { setEditProjOpen(false); setEditingProject(null) }}
+        onSave={handleUpdateManualProject}
+        initialProject={editingProject ?? undefined}
+      />
+
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">Staffing Dashboard</h1>
@@ -1578,6 +1609,15 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {selectedProject.is_manual && (
+                        <button
+                          onClick={() => { setEditingProject(selectedProject); setEditProjOpen(true) }}
+                          className="p-1 text-slate-400 hover:text-navy-800 transition-colors"
+                          title="Editar proyecto"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
                       <Badge variant={projectStatusVariant(selectedProject.status)}>
                         {selectedProject.status}
                       </Badge>
