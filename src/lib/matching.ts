@@ -36,14 +36,27 @@ function totalDedicationDuringProject(
 ): number {
   const ps = new Date(project.start_date)
   const pe = new Date(project.end_date)
+  const projectDays = Math.max(1, (pe.getTime() - ps.getTime()) / 86400000)
+
   return assignments
     .filter((a) => a.consultant_id === consultantId)
-    .filter((a) => {
-      const as = new Date(a.assigned_at)
+    .reduce((sum, a) => {
+      // Use actual assignment start date when available; fall back to assigned_at
+      const as = a.start_date ? new Date(a.start_date) : new Date(a.assigned_at)
       const ae = a.end_date ? new Date(a.end_date) : pe
-      return as <= pe && ae >= ps
-    })
-    .reduce((sum, a) => sum + a.dedication_percentage, 0)
+
+      // No overlap
+      if (as > pe || ae < ps) return sum
+
+      // Weight dedication by what fraction of the PROJECT period is actually overlapping.
+      // This prevents a 1-day overlap from blocking a consultant for a 3-month project.
+      const overlapStart = as > ps ? as : ps
+      const overlapEnd = ae < pe ? ae : pe
+      const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / 86400000)
+      const weight = overlapDays / projectDays
+
+      return sum + a.dedication_percentage * weight
+    }, 0)
 }
 
 export function scoreConsultant(
