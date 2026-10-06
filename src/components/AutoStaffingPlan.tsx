@@ -64,20 +64,52 @@ export default function AutoStaffingPlan({
   function generatePlan() {
     const claimedIds = new Set<string>()
 
+    console.log('[AutoStaff] Projects to process:', previewProjects.map((p) => `${p.name} (${p.status})`))
+    console.log('[AutoStaff] Total active consultants:', consultants.filter((c) => c.is_active).length)
+
+    const TARGET_NAMES = ['Diego Castro', 'Juan Felipe Quintero']
+
     const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
       const assignedCount = assignments.filter((a) => a.project_id === project.id).length
       const positionsToFill = (project.positions ?? []).slice(assignedCount)
+
+      console.log(`\n[AutoStaff] ── Project: "${project.name}"`)
+      console.log(`  Positions to fill (${positionsToFill.length}):`, positionsToFill.map((p) => p.seniority))
 
       const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
         const available = consultants.filter(
           (c) => c.is_active && !claimedIds.has(c.id),
         )
+
+        // Debug why target consultants might be missing
+        for (const name of TARGET_NAMES) {
+          const c = consultants.find((x) => x.name.toLowerCase().includes(name.toLowerCase().split(' ')[1]))
+          if (c) {
+            const isClaimed = claimedIds.has(c.id)
+            const { GROUPED_SENIORITY_LEVEL } = { GROUPED_SENIORITY_LEVEL: { Intern:0,Consultant:1,'Senior Consultant':2,Associate:3,'Senior Associate':3,Manager:4,'Senior Manager':4,Director:5,Partner:6,'Senior Partner':7 } }
+            const neededLevel = GROUPED_SENIORITY_LEVEL[position.seniority as keyof typeof GROUPED_SENIORITY_LEVEL] ?? 0
+            const cLevel = GROUPED_SENIORITY_LEVEL[c.seniority as keyof typeof GROUPED_SENIORITY_LEVEL] ?? 0
+            const diff = Math.abs(cLevel - neededLevel)
+            const totalDed = assignments.filter((a) => a.consultant_id === c.id).reduce((sum, a) => {
+              const ps = new Date(project.start_date), pe = new Date(project.end_date)
+              const as2 = new Date(a.assigned_at), ae = a.end_date ? new Date(a.end_date) : pe
+              return as2 <= pe && ae >= ps ? sum + a.dedication_percentage : sum
+            }, 0)
+            console.log(`  [${name}] position=${position.seniority} | seniority=${c.seniority}(lv${cLevel}) neededLv=${neededLevel} diff=${diff} claimed=${isClaimed} dedication=${totalDed}% isActive=${c.is_active}`)
+          }
+        }
+
         const results = matchConsultantsForPosition(
           position, project, available, likes, vacations, assignments,
         ).slice(0, 3)
 
         // Claim the top pick so it won't appear in later positions
-        if (results[0]) claimedIds.add(results[0].consultant.id)
+        if (results[0]) {
+          console.log(`  → Top pick for ${position.seniority}: ${results[0].consultant.name} (score ${results[0].score}) — claimed`)
+          claimedIds.add(results[0].consultant.id)
+        } else {
+          console.log(`  → No match found for ${position.seniority}`)
+        }
 
         return { position, suggestions: results }
       })
