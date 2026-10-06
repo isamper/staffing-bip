@@ -61,7 +61,7 @@ export default function AutoStaffingPlan({
         new Date(p.start_date) <= new Date(today.getTime() + horizon * 86400000) &&
         new Date(p.end_date) >= today,
     )
-    .sort((a, b) => (b.is_manual ? 1 : 0) - (a.is_manual ? 1 : 0))
+    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
 
   function generatePlan() {
     const claimedIds = new Set<string>()
