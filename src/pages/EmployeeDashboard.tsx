@@ -439,6 +439,14 @@ export default function EmployeeDashboard() {
         .from('consultant_profiles')
         .upsert({ consultant_id: toSave.id, cv_data: cvData, updated_at: new Date().toISOString() })
         .then(() => {})
+      // Sync role_title and seniority back to profiles so the matching algorithm stays accurate
+      if (cvData.role_title || cvData.seniority) {
+        supabase
+          .from('profiles')
+          .update({ role_title: cvData.role_title, seniority: cvData.seniority })
+          .eq('id', toSave.id)
+          .then(() => {})
+      }
     }
     setCvDirty(false)
     setCvSaved(true)

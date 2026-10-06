@@ -226,7 +226,8 @@ export function scoreConsultantForPosition(
     }
   }
 
-  // Partial overlap warning — show which assignments overlap even if they don't block
+  // Partial overlap warning — show which assignments overlap even if they don't block.
+  // Also penalize score so fully-available consultants are prioritized over those with overlaps.
   let assignmentWarning: string | undefined
   if (usedDedication > 0) {
     const overlapping = overlappingAssignments(consultant.id, project, assignments)
@@ -238,6 +239,8 @@ export function scoreConsultantForPosition(
         ? formatDate(latest.end_date)
         : formatDate(project.end_date)
       assignmentWarning = `Solapamiento con asignación existente hasta ${endLabel} (~${Math.round(usedDedication)}% dedicación estimada)`
+      // Penalty scales with overlap dedication so a 1% overlap doesn't beat a truly-available consultant
+      score -= Math.round(20 * (usedDedication / 100))
     }
   }
 
@@ -356,18 +359,6 @@ export function matchConsultantsForPosition(
   assignments: ProjectAssignment[] = [],
 ): MatchResult[] {
   const neededLevel = GROUPED_SENIORITY_LEVEL[position.seniority] ?? 0
-
-  // Temporary debug — log why specific people might be excluded
-  const debug = ['quintero', 'castro']
-  consultants.forEach((c) => {
-    const lname = c.name.toLowerCase()
-    if (debug.some((n) => lname.includes(n))) {
-      const lvl = GROUPED_SENIORITY_LEVEL[c.seniority] ?? -1
-      const diff = Math.abs(lvl - neededLevel)
-      const ded = totalDedicationDuringProject(c.id, project, assignments)
-      console.log(`[match] ${c.name} | seniority="${c.seniority}"(${lvl}) pos="${position.seniority}"(${neededLevel}) diff=${diff} is_active=${c.is_active} dedication=${Math.round(ded)}%`)
-    }
-  })
 
   return consultants
     .filter((c) => c.is_active && Math.abs((GROUPED_SENIORITY_LEVEL[c.seniority] ?? 0) - neededLevel) <= 1)

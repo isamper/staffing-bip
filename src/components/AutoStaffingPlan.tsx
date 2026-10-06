@@ -3,7 +3,7 @@ import { Zap, Check, X, AlertTriangle, Heart, ChevronDown, ChevronUp } from 'luc
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { matchConsultantsForPosition, SENIORITY_FILL_ORDER } from '@/lib/matching'
+import { matchConsultantsForPosition } from '@/lib/matching'
 import { getInitials, formatDate } from '@/lib/utils'
 import type {
   Profile,
@@ -68,10 +68,7 @@ export default function AutoStaffingPlan({
 
     const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
       const assignedCount = assignments.filter((a) => a.project_id === project.id).length
-      // Sort highest seniority first so Partners aren't "claimed" for Director slots
-      const positionsToFill = (project.positions ?? [])
-        .slice(assignedCount)
-        .sort((a, b) => (SENIORITY_FILL_ORDER[b.seniority] ?? 0) - (SENIORITY_FILL_ORDER[a.seniority] ?? 0))
+      const positionsToFill = (project.positions ?? []).slice(assignedCount)
 
       const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
         const available = consultants.filter(
