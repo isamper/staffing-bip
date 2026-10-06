@@ -356,6 +356,19 @@ export function matchConsultantsForPosition(
   assignments: ProjectAssignment[] = [],
 ): MatchResult[] {
   const neededLevel = GROUPED_SENIORITY_LEVEL[position.seniority] ?? 0
+
+  // Temporary debug — log why specific people might be excluded
+  const debug = ['quintero', 'castro']
+  consultants.forEach((c) => {
+    const lname = c.name.toLowerCase()
+    if (debug.some((n) => lname.includes(n))) {
+      const lvl = GROUPED_SENIORITY_LEVEL[c.seniority] ?? -1
+      const diff = Math.abs(lvl - neededLevel)
+      const ded = totalDedicationDuringProject(c.id, project, assignments)
+      console.log(`[match] ${c.name} | seniority="${c.seniority}"(${lvl}) pos="${position.seniority}"(${neededLevel}) diff=${diff} is_active=${c.is_active} dedication=${Math.round(ded)}%`)
+    }
+  })
+
   return consultants
     .filter((c) => c.is_active && Math.abs((GROUPED_SENIORITY_LEVEL[c.seniority] ?? 0) - neededLevel) <= 1)
     .map((c) => scoreConsultantForPosition(c, position, project, likes, vacations, assignments))
