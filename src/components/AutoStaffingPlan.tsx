@@ -63,15 +63,18 @@ export default function AutoStaffingPlan({
 
   function generatePlan() {
     const claimedIds = new Set<string>()
-    const alreadyAssignedIds = new Set(assignments.map((a) => a.consultant_id))
 
     const projectPlans: ProjectPlan[] = previewProjects.map((project) => {
-      const assignedCount = assignments.filter((a) => a.project_id === project.id).length
-      const positionsToFill = (project.positions ?? []).slice(assignedCount)
+      // Only count assignments made inside the app (not Kimble firm-staff rows) so
+      // Kimble-imported firm assignments don't incorrectly shrink the positions list.
+      const appAssigned = assignments.filter(
+        (a) => a.project_id === project.id && !a.id.startsWith('kimble-'),
+      ).length
+      const positionsToFill = (project.positions ?? []).slice(appAssigned)
 
       const positionSuggestions: PositionSuggestion[] = positionsToFill.map((position) => {
         const available = consultants.filter(
-          (c) => c.is_active && !alreadyAssignedIds.has(c.id) && !claimedIds.has(c.id),
+          (c) => c.is_active && !claimedIds.has(c.id),
         )
         const results = matchConsultantsForPosition(
           position, project, available, likes, vacations, assignments,
@@ -186,8 +189,14 @@ export default function AutoStaffingPlan({
               </p>
               <div className="space-y-2">
                 {previewProjects.map((p) => {
-                  const assigned = assignments.filter((a) => a.project_id === p.id).length
-                  const slots = Math.max(0, p.team_size - assigned)
+                  // Use positions.length as the base for unfilled slots when positions
+                  // are defined — it already excludes Kimble firm staff.
+                  const appAssigned = assignments.filter(
+                    (a) => a.project_id === p.id && !a.id.startsWith('kimble-'),
+                  ).length
+                  const slots = p.positions && p.positions.length > 0
+                    ? Math.max(0, p.positions.length - appAssigned)
+                    : Math.max(0, p.team_size - assignments.filter((a) => a.project_id === p.id).length)
                   const key = `preview-${p.id}`
                   const isExpanded = expanded.has(key)
                   return (
@@ -219,7 +228,7 @@ export default function AutoStaffingPlan({
                         <div className="border-t border-slate-100 px-3 pb-3 pt-2">
                           <p className="mb-2 text-xs font-medium text-slate-500">Positions to fill:</p>
                           <div className="space-y-2">
-                            {p.positions.slice(assignments.filter((a) => a.project_id === p.id).length).map((pos) => (
+                            {p.positions.slice(appAssigned).map((pos) => (
                               <div key={pos.id} className="rounded-md bg-white border border-slate-100 px-3 py-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <p className="text-xs font-semibold text-navy-800">{pos.role}</p>
