@@ -599,17 +599,25 @@ export default function AdminDashboard() {
         .select('*')
         .then(({ data }) => {
           if (!data) return
+          const normStr = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+          const nameToSupabase = new Map(data.map((p) => [normStr(p.name ?? ''), p]))
           const newHires = data.filter(
             (p) => p.email && !knownEmails.has(p.email) && !p.is_admin_only,
           ) as Profile[]
-          if (newHires.length > 0) {
-            setConsultants((prev) => {
-              const existingIds = new Set(prev.map((c) => c.id))
-              // deactivatedIds state may not be updated yet — read from Supabase data again
-              const toAdd = newHires.filter((h) => !existingIds.has(h.id))
-              return [...prev, ...toAdd]
+          setConsultants((prev) => {
+            // Sync seniority + role_title from Supabase for mock consultants matched by name
+            const updated = prev.map((c) => {
+              const match = nameToSupabase.get(normStr(c.name))
+              if (match && (match.seniority || match.role_title)) {
+                return { ...c, seniority: match.seniority ?? c.seniority, role_title: match.role_title ?? c.role_title }
+              }
+              return c
             })
-          }
+            // Add new hires (people in Supabase not covered by mock data)
+            const existingIds = new Set(updated.map((c) => c.id))
+            const toAdd = newHires.filter((h) => !existingIds.has(h.id))
+            return toAdd.length > 0 ? [...updated, ...toAdd] : updated
+          })
         })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

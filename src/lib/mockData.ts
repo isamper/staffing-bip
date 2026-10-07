@@ -418,6 +418,7 @@ export const mockConsultants: Profile[] = [
   c('c75', 'Sara Lopez',              'Consultor', 'Consultant', [], null),
   c('c76', 'Mateo Zarama',            'Consultor', 'Consultant', [], null),
   c('c77', 'Alejandro Abdel',         'Consultor', 'Consultant', [], null),
+  c('c78', 'Cristobal Valencia',      'Consultor', 'Consultant', [], null),
 ]
 
 /**
