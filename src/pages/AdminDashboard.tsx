@@ -1801,6 +1801,8 @@ export default function AdminDashboard() {
                           {positionSuggestions.map(({ position, total, results }, pi) => {
                             const filled = positionGroupFilledCounts[pi] ?? 0
                             const remaining = Math.max(0, total - filled)
+                            // Hide fully-staffed groups — they reappear automatically if someone is unassigned
+                            if (position && remaining === 0) return null
                             return (
                             <div key={position?.id ?? 'general'}>
                               {position && (
@@ -1809,11 +1811,8 @@ export default function AdminDashboard() {
                                   <Badge variant="open" className="text-xs">{position.seniority}</Badge>
                                   {total > 1 && (
                                     <span className="text-xs text-slate-400">
-                                      {remaining > 0 ? `${remaining} de ${total} por asignar` : `${total}/${total} asignados`}
+                                      {remaining} de {total} por asignar
                                     </span>
-                                  )}
-                                  {total === 1 && filled >= 1 && (
-                                    <span className="text-xs text-green-600">✓ Asignado</span>
                                   )}
                                 </div>
                               )}
