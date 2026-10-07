@@ -1002,16 +1002,24 @@ export default function AdminDashboard() {
   const isActiveProject = selectedProject?.status === 'Active'
   const isEndedProject = selectedProject ? new Date(selectedProject.end_date) < today : false
 
-  // Per-position suggestions using the same scorer as Staffing Plan
-  const positionSuggestions =
-    selectedProject && !isActiveProject && selectedProject.positions?.length
-      ? selectedProject.positions.map((pos) => ({
-          position: pos,
-          results: matchConsultantsForPosition(pos, selectedProject, consultants.filter((c) => !deactivatedIds.has(c.id)), mockLikes, vacations, assignments),
-        }))
-      : selectedProject && !isActiveProject
-      ? [{ position: null, results: matchConsultants(selectedProject, consultants.filter((c) => !deactivatedIds.has(c.id)), mockLikes, vacations, assignments) }]
-      : []
+  // Per-position suggestions grouped by (role, seniority) so duplicate slots show a counter instead of repeating the full block
+  const positionSuggestions = (() => {
+    if (!selectedProject || isActiveProject) return []
+    const activeConsultants = consultants.filter((c) => !deactivatedIds.has(c.id))
+    if (!selectedProject.positions?.length) {
+      return [{ position: null as Position | null, total: 0, results: matchConsultants(selectedProject, activeConsultants, mockLikes, vacations, assignments) }]
+    }
+    const groups: { position: Position; total: number; results: ReturnType<typeof matchConsultantsForPosition> }[] = []
+    for (const pos of selectedProject.positions) {
+      const existing = groups.find((g) => g.position.role === pos.role && g.position.seniority === pos.seniority)
+      if (existing) {
+        existing.total++
+      } else {
+        groups.push({ position: pos, total: 1, results: matchConsultantsForPosition(pos, selectedProject, activeConsultants, mockLikes, vacations, assignments) })
+      }
+    }
+    return groups.map((g) => ({ position: g.position as Position | null, total: g.total, results: g.results }))
+  })()
 
   const assignedToSelected = assignments.filter((a) => {
     if (a.project_id !== selectedProject?.id) return false
@@ -1768,12 +1776,28 @@ export default function AdminDashboard() {
                             </div>
                             <p className="text-xs text-slate-400">Dejar vacío para usar las fechas del proyecto.</p>
                           </div>
-                          {positionSuggestions.map(({ position, results }, pi) => (
+                          {positionSuggestions.map(({ position, total, results }, pi) => {
+                            const filled = position
+                              ? assignedToSelected.filter((a) => {
+                                  const c = consultants.find((c) => c.id === a.consultant_id)
+                                  return c?.seniority === position.seniority
+                                }).length
+                              : 0
+                            const remaining = Math.max(0, total - filled)
+                            return (
                             <div key={position?.id ?? 'general'}>
                               {position && (
-                                <div className="mb-2 flex items-center gap-2">
+                                <div className="mb-2 flex items-center gap-2 flex-wrap">
                                   <span className="text-sm font-medium text-blue-800">{position.role}</span>
                                   <Badge variant="open" className="text-xs">{position.seniority}</Badge>
+                                  {total > 1 && (
+                                    <span className="text-xs text-slate-400">
+                                      {remaining > 0 ? `${remaining} de ${total} por asignar` : `${total}/${total} asignados`}
+                                    </span>
+                                  )}
+                                  {total === 1 && filled >= 1 && (
+                                    <span className="text-xs text-green-600">✓ Asignado</span>
+                                  )}
                                 </div>
                               )}
                               {!position && (
@@ -1836,7 +1860,8 @@ export default function AdminDashboard() {
                                 </div>
                               )}
                             </div>
-                          ))}
+                          )
+                          })}
                         </div>
                       )}
                     </div>
