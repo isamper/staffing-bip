@@ -19,7 +19,7 @@ import {
   mockLikes,
   EMAIL_OVERRIDES,
 } from '@/lib/mockData'
-import { matchConsultants, matchConsultantsForPosition, findReplacements } from '@/lib/matching'
+import { matchConsultants, matchConsultantsForPosition, findReplacements, SENIORITY_FILL_ORDER } from '@/lib/matching'
 import { MAX_CARGABILITY } from '@/lib/constants'
 import { getInitials, formatDate, isAvailableNow, nameToEmail } from '@/lib/utils'
 import { supabase, isDemoMode } from '@/lib/supabase'
@@ -1033,6 +1033,28 @@ export default function AdminDashboard() {
   })
   const assignedIds = assignedToSelected.map((a) => a.consultant_id)
 
+  // Filled slot count per position group — uses ±1 seniority tolerance (same as matching) with no double-counting
+  const positionGroupFilledCounts = (() => {
+    const mergedConsultants = consultants.map((c) => cvProfiles[c.id] ? { ...c, ...cvProfiles[c.id] } : c)
+    const pool = assignedToSelected.map((a) => {
+      const c = mergedConsultants.find((c) => c.id === a.consultant_id)
+      return { id: a.id, level: SENIORITY_FILL_ORDER[c?.seniority ?? ''] ?? -1 }
+    })
+    const used = new Set<string>()
+    return positionSuggestions.map(({ position, total }) => {
+      if (!position) return 0
+      const neededLevel = SENIORITY_FILL_ORDER[position.seniority] ?? 0
+      let filled = 0
+      for (const entry of pool) {
+        if (!used.has(entry.id) && entry.level >= 0 && Math.abs(entry.level - neededLevel) <= 1 && filled < total) {
+          filled++
+          used.add(entry.id)
+        }
+      }
+      return filled
+    })
+  })()
+
   const SENIORITY_RANK: Record<string, number> = {
     'Senior Partner': 0, 'Partner': 1, 'Director': 2,
     'Senior Manager': 3, 'Manager': 4,
@@ -1777,12 +1799,7 @@ export default function AdminDashboard() {
                             <p className="text-xs text-slate-400">Dejar vacío para usar las fechas del proyecto.</p>
                           </div>
                           {positionSuggestions.map(({ position, total, results }, pi) => {
-                            const filled = position
-                              ? assignedToSelected.filter((a) => {
-                                  const c = consultants.find((c) => c.id === a.consultant_id)
-                                  return c?.seniority === position.seniority
-                                }).length
-                              : 0
+                            const filled = positionGroupFilledCounts[pi] ?? 0
                             const remaining = Math.max(0, total - filled)
                             return (
                             <div key={position?.id ?? 'general'}>
