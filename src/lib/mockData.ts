@@ -408,7 +408,7 @@ export const mockConsultants: Profile[] = [
   c('c66', 'Hernan Sanchez',          'Consultor', 'Consultant', [], null),
   c('c67', 'Juan Andres Martinez',    'Consultor', 'Consultant', [], null),
   c('c68', 'Juan Carlos Cárdenas',    'Consultor', 'Consultant', [], null),
-  c('c69', 'Juan Felipe Quintero',    'Consultor', 'Consultant', [], null),
+  c('c69', 'Juan Felipe Quintero',    'Socio', 'Partner', [], null),
   c('c70', 'Juan Pablo Linares',      'Consultor', 'Consultant', [], null),
   c('c71', 'María Constanza Cabrera', 'Consultor', 'Consultant', [], null),
   c('c72', 'Santiago Luengas',        'Consultor', 'Consultant', [], null),
@@ -418,7 +418,6 @@ export const mockConsultants: Profile[] = [
   c('c75', 'Sara Lopez',              'Consultor', 'Consultant', [], null),
   c('c76', 'Mateo Zarama',            'Consultor', 'Consultant', [], null),
   c('c77', 'Alejandro Abdel',         'Consultor', 'Consultant', [], null),
-  c('c78', 'Cristobal Valencia',      'Consultor', 'Consultant', [], null),
 ]
 
 /**
