@@ -304,13 +304,16 @@ export default function PeopleTab({
       // isn't found in the projects list. When the project IS found, also respect
       // its end date — otherwise expired-project assignments (with null end_date)
       // inflate the dedication count and show "On project" incorrectly.
+      // Kimble assignments (id starts with "kimble-") whose project is not in the
+      // list are stale/ghost rows left over from old imports — exclude them.
       const activeDedicationAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
         if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
         if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
         const proj = projects.find((p) => p.id === a.project_id)
         if (proj) return new Date(proj.end_date) >= today
-        return true // include manual assignments whose project_id isn't in projects list
+        // Project not in list: include only manual assignments, not ghost Kimble rows
+        return !a.id.startsWith('kimble-')
       })
       const projectDedication = activeDedicationAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
 
