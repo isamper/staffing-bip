@@ -291,6 +291,9 @@ export default function PeopleTab({
     .map((c) => {
       const activeAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
+        // The Kimble parser always sets end_date. A kimble- row with null end_date
+        // is a ghost from an old import that was never cleaned up — skip it.
+        if (a.id.startsWith('kimble-') && !a.end_date) return false
         // Respect the individual assignment window, not just the project end date.
         // Only count this person as active on the project if today falls within
         // their personal start→end window.
@@ -308,6 +311,8 @@ export default function PeopleTab({
       // list are stale/ghost rows left over from old imports — exclude them.
       const activeDedicationAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
+        // Ghost Kimble rows always have null end_date (the parser always sets one)
+        if (a.id.startsWith('kimble-') && !a.end_date) return false
         if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
         if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
         const proj = projects.find((p) => p.id === a.project_id)
