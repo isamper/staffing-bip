@@ -514,15 +514,14 @@ export default function AdminDashboard() {
           }
         })
 
-      // 2. Project assignments
+      // 2. Project assignments — always replace with Supabase data; never fall back
+      // to mockAssignments in Supabase mode (an empty table should mean no assignments,
+      // not the hardcoded mock ones which would inflate dedication percentages).
       supabase
         .from('project_assignments')
         .select('*')
         .then(({ data }) => {
-          if (data && data.length > 0) {
-            setAssignments(data as ProjectAssignment[])
-          }
-          // else keep the mockAssignments default
+          if (data) setAssignments(data as ProjectAssignment[])
         })
 
       // 3. Beach assignments (current year only)
