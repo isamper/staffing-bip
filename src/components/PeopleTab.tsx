@@ -54,6 +54,7 @@ interface ConsultantStats {
   isRollingOff: boolean
   isOnProject: boolean
   isOnBeach: boolean
+  effectiveAvailableFrom: string | null
   activeBeachTasks: BeachAssignment[]
   pastBeachTasks: BeachAssignment[]
   pastVacations: VacationRequest[]
@@ -101,7 +102,9 @@ function statusBadge(stats: ConsultantStats) {
     return <Badge variant="warning" className="shrink-0 text-xs gap-1"><Clock size={10} /> Rolling off</Badge>
   if (stats.availabilityBand)
     return <Badge variant="success" className="shrink-0 text-xs">Available now</Badge>
-  return <Badge variant="secondary" className="shrink-0 text-xs">On project</Badge>
+  if (stats.isOnProject)
+    return <Badge variant="secondary" className="shrink-0 text-xs">On project</Badge>
+  return null
 }
 
 function DedicationBar({ value, max }: { value: number; max: number }) {
@@ -124,7 +127,7 @@ function DedicationBar({ value, max }: { value: number; max: number }) {
 }
 
 function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { stats: ConsultantStats; onClick: () => void; onRemoveVacation: (id: string) => void; onDeactivate: (id: string) => void }) {
-  const { consultant, totalDedication, maxDedication, projectsInfo, pastProjectsInfo } = stats
+  const { consultant, totalDedication, maxDedication, projectsInfo, pastProjectsInfo, effectiveAvailableFrom } = stats
   const allProjects = [
     ...projectsInfo.map(p => ({ ...p, past: false as const })),
     ...pastProjectsInfo.map(p => ({ ...p, past: true as const })),
@@ -232,10 +235,10 @@ function ConsultantRow({ stats, onClick, onRemoveVacation, onDeactivate }: { sta
         </button>
 
         <p className="text-xs text-slate-400">
-          {isAvailableNow(consultant.available_from)
+          {isAvailableNow(effectiveAvailableFrom)
             ? 'Available now'
-            : consultant.available_from
-            ? `Free ${formatDate(consultant.available_from)}`
+            : effectiveAvailableFrom
+            ? `Free ${formatDate(effectiveAvailableFrom)}`
             : '—'}
         </p>
         <ChevronRight size={14} className="text-slate-300 mt-1" />
@@ -298,14 +301,29 @@ export default function PeopleTab({
       })
 
       // For the dedication total, include manual assignments even if their project
-      // isn't found in the projects list — same logic as beachDedication (date-only check).
+      // isn't found in the projects list. When the project IS found, also respect
+      // its end date — otherwise expired-project assignments (with null end_date)
+      // inflate the dedication count and show "On project" incorrectly.
       const activeDedicationAssignments = assignments.filter((a) => {
         if (a.consultant_id !== c.id) return false
         if (a.end_date && new Date(a.end_date + 'T00:00:00') < today) return false
         if (a.start_date && new Date(a.start_date + 'T00:00:00') > today) return false
-        return true
+        const proj = projects.find((p) => p.id === a.project_id)
+        if (proj) return new Date(proj.end_date) >= today
+        return true // include manual assignments whose project_id isn't in projects list
       })
       const projectDedication = activeDedicationAssignments.reduce((sum, a) => sum + a.dedication_percentage, 0)
+
+      // Effective available_from:
+      // - On project → use the latest assignment end_date (when they'll actually be free)
+      // - Not on project → null (available immediately, regardless of stale profile field)
+      const isOnProjectNow = projectDedication > 0
+      const latestAssignmentEnd = isOnProjectNow
+        ? activeDedicationAssignments
+            .filter((a): a is typeof a & { end_date: string } => !!a.end_date)
+            .reduce<string | null>((max, a) => (!max || a.end_date > max ? a.end_date : max), null)
+        : null
+      const effectiveAvailableFrom = isOnProjectNow ? (latestAssignmentEnd ?? c.available_from) : null
 
       // Active beach tasks — calculated early so we can include beach dedication in totalDedication
       const activeBeachTasksEarly = beachAssignments.filter(
@@ -407,10 +425,11 @@ export default function PeopleTab({
         fatigueLevel,
         isAtFatigueRisk: fatigueLevel === 'riesgo',
         availabilityPct,
-        availabilityBand: isAvailableNow(c.available_from) ? availabilityBandOf(availabilityPct) : null,
+        availabilityBand: isAvailableNow(effectiveAvailableFrom) ? availabilityBandOf(availabilityPct) : null,
         isRollingOff,
-        isOnProject: projectDedication > 0,
-        isOnBeach: projectDedication === 0,
+        isOnProject: isOnProjectNow,
+        isOnBeach: !isOnProjectNow,
+        effectiveAvailableFrom,
         activeBeachTasks,
         pastBeachTasks,
         pastVacations,
